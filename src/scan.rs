@@ -678,6 +678,20 @@ float!(f32, f64);
 
 #[cfg(feature = "alloc")]
 impl Scan for alloc::string::String {
+    fn scan_stream<S: Source, const N: usize>(
+        scanner: &mut Scanner<S, N>,
+    ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+        scanner.scan_fold_impl(
+            alloc::vec::Vec::new(),
+            |mut bytes, chunk| {
+                bytes.extend_from_slice(chunk);
+                Ok(bytes)
+            },
+            |bytes| Self::from_utf8(bytes).map_err(|_| ParseError::InvalidUtf8),
+            Some(Self::scan_token),
+        )
+    }
+
     fn scan_token(token: &[u8]) -> Result<Self, ParseError> {
         core::str::from_utf8(token)
             .map(alloc::string::String::from)
@@ -686,6 +700,20 @@ impl Scan for alloc::string::String {
 }
 #[cfg(feature = "alloc")]
 impl Scan for alloc::vec::Vec<u8> {
+    fn scan_stream<S: Source, const N: usize>(
+        scanner: &mut Scanner<S, N>,
+    ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+        scanner.scan_fold_impl(
+            Self::new(),
+            |mut bytes, chunk| {
+                bytes.extend_from_slice(chunk);
+                Ok(bytes)
+            },
+            Ok,
+            Some(Self::scan_token),
+        )
+    }
+
     fn scan_token(token: &[u8]) -> Result<Self, ParseError> {
         Ok(token.to_vec())
     }

@@ -406,6 +406,40 @@ fn decimal_chunks_validate_every_byte_lane() {
     }
 }
 
+#[cfg(feature = "alloc")]
+#[test]
+fn allocated_tokens_stream_across_utf8_and_recover_after_errors() {
+    for size in 1..=8 {
+        let mut scanner = Scanner::<_, { usize::MAX }>::with_capacity(Chunks {
+            bytes: "🦀été payload".as_bytes(),
+            size,
+        });
+        assert_eq!(scanner.require::<String>().unwrap(), "🦀été");
+        assert_eq!(scanner.require::<Vec<u8>>().unwrap(), b"payload");
+        assert_eq!(scanner.scan::<String>().unwrap(), None);
+
+        let mut scanner = Scanner::<_, 4>::with_capacity(Chunks {
+            bytes: b"\xff \xff1234 12345 ok \xf0\x9f\xa6\x80",
+            size,
+        });
+        assert!(matches!(
+            scanner.scan::<String>(),
+            Err(ScanError::Parse(ParseError::InvalidUtf8))
+        ));
+        assert!(matches!(
+            scanner.scan::<String>(),
+            Err(ScanError::TokenTooLong { limit: 4 })
+        ));
+        assert!(matches!(
+            scanner.scan::<Vec<u8>>(),
+            Err(ScanError::TokenTooLong { limit: 4 })
+        ));
+        assert_eq!(scanner.require::<String>().unwrap(), "ok");
+        assert_eq!(scanner.require::<String>().unwrap(), "🦀");
+        assert_eq!(scanner.scan::<Vec<u8>>().unwrap(), None);
+    }
+}
+
 #[test]
 fn incremental_tokens_fold_without_scratch_and_recover_after_errors() {
     for size in 1..=8 {
