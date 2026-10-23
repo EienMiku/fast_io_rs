@@ -57,6 +57,8 @@ Defaults represent absence. There is no separate capability flag to maintain.
 The dispatch uses RPITIT, associated constants and inline const blocks. Both arms
 still type-check; it does not require specialization or nightly features.
 See [the custom formatter example](examples/custom.rs).
+The [protocol design notes](docs/DESIGN.md) explain capability propagation and
+include a reproducible inspection of unoptimized code generation.
 
 With the optional `derive` feature, structs can declare their layout directly:
 

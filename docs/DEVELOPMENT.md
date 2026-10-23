@@ -70,6 +70,7 @@ with warnings denied. The last local checkpoint passed stable tests, Clippy,
 rustdoc and a nightly all-target check.
 
 See [PERFORMANCE.md](PERFORMANCE.md) for measured snapshots and limitations.
+See [DESIGN.md](DESIGN.md) for the optional-hook mechanism and a codegen probe.
 
 ## Next priorities
 
