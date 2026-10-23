@@ -9,6 +9,7 @@ pub use fast_io_derive::Encode;
 #[doc(hidden)]
 pub mod arguments;
 pub mod batch;
+pub mod binary;
 pub mod buffered;
 mod builtins;
 pub mod compose;
@@ -32,6 +33,7 @@ pub mod presence;
 pub mod sink;
 
 pub use batch::Batch;
+pub use binary::{Binary, Endian, ReadError, be, le, read_be, read_le};
 pub use buffered::Buffered;
 pub use compose::{Parts, join};
 pub use encode::{Encode, write};

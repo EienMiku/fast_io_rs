@@ -98,3 +98,39 @@ fn buffered_input_retries_interrupted_reads() {
     assert_eq!(scanner.require::<i8>().unwrap(), -9);
     assert!(scanner.scan::<u8>().unwrap().is_none());
 }
+
+#[test]
+fn binary_endian_values_cross_source_boundaries() {
+    let mut bytes = [0; 64];
+    let mut output = fast_io::SliceSink::new(&mut bytes);
+    fast_io::print!(&mut output;
+        fast_io::be(0x1234u16), fast_io::le(i128::MIN), fast_io::be(1.25f64)
+    )
+    .unwrap();
+    let encoded = output.into_written();
+    assert_eq!(&encoded[..2], &[0x12, 0x34]);
+    for size in 1..=8 {
+        let mut source = Chunks {
+            bytes: encoded,
+            size,
+        };
+        assert_eq!(
+            fast_io::read_be::<u16, _>(&mut source).unwrap(),
+            Some(0x1234)
+        );
+        assert_eq!(
+            fast_io::read_le::<i128, _>(&mut source).unwrap(),
+            Some(i128::MIN)
+        );
+        assert_eq!(fast_io::read_be::<f64, _>(&mut source).unwrap(), Some(1.25));
+        assert_eq!(fast_io::read_le::<u8, _>(&mut source).unwrap(), None);
+    }
+    let mut truncated = [1u8].as_slice();
+    assert!(matches!(
+        fast_io::read_le::<u32, _>(&mut truncated),
+        Err(fast_io::ReadError::UnexpectedEof {
+            expected: 4,
+            actual: 1
+        })
+    ));
+}
