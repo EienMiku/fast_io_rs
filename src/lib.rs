@@ -25,6 +25,7 @@ pub mod source;
 pub mod std_input;
 #[cfg(feature = "std")]
 pub mod std_io;
+pub mod transcode;
 
 pub mod encode;
 pub mod presence;
@@ -47,3 +48,6 @@ pub use source::Source;
 pub use std_input::Input;
 #[cfg(feature = "std")]
 pub use std_io::Io;
+pub use transcode::{
+    Utf16, Utf16Bytes, Utf16Error, Utf16Lossy, utf16, utf16_be, utf16_le, utf16_lossy,
+};
