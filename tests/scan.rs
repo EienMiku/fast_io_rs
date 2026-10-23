@@ -276,6 +276,42 @@ fn radix_streaming_preserves_limits_recovery_and_default_hooks() {
 }
 
 #[test]
+fn cached_decimal_prefix_preserves_parsing_and_recovery() {
+    // The ordinary Chunks source has no cache hook; this exercises cache hits,
+    // partial cached tokens, and refill boundaries against the same parser.
+    fn check<S: Source<Error = core::convert::Infallible>>(source: S) {
+        let mut scanner = Scanner::<_, 24>::with_capacity(source);
+        for token in [
+            "0",
+            "+255",
+            "18446744073709551615",
+            "18446744073709551616",
+            "184467440737095516160x",
+            "1844674407370955161x",
+            "+",
+            "-1",
+            "000000000000000000000042",
+        ] {
+            let actual = scanner.scan::<u64>().map_err(|error| match error {
+                ScanError::Parse(error) => error,
+                other => panic!("unexpected scan error: {other:?}"),
+            });
+            assert_eq!(actual, u64::scan_token(token.as_bytes()).map(Some));
+        }
+        assert!(matches!(
+            scanner.scan::<u64>(),
+            Err(ScanError::TokenTooLong { limit: 24 })
+        ));
+        assert_eq!(scanner.scan::<u64>().unwrap(), Some(7));
+        assert_eq!(scanner.scan::<u64>().unwrap(), None);
+    }
+    let input = b" \t0 +255 18446744073709551615 18446744073709551616 184467440737095516160x 1844674407370955161x + -1 000000000000000000000042 0000000000000000000000001x 7";
+    check(input.as_slice());
+    check(fast_io::BufferedInput::<_, 17>::new(input.as_slice()));
+    check(fast_io::BufferedInput::<_, 64>::new(input.as_slice()));
+}
+
+#[test]
 fn decimal_chunks_validate_every_byte_lane() {
     for seed in [*b"00000000", *b"99999999", *b"12345678"] {
         for lane in 0..8 {
