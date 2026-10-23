@@ -257,6 +257,66 @@ fn raw_reads_fill_across_buffers_and_preserve_unread_data() {
 }
 
 #[test]
+fn direct_reads_preserve_hooks_and_source_limits() {
+    struct Direct<'a>(&'a [u8]);
+    impl Source for Direct<'_> {
+        type Error = core::convert::Infallible;
+        fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
+            panic!("direct read hook must be selected");
+        }
+        fn consume(&mut self, _: usize) {
+            panic!("direct read already consumed its input");
+        }
+        fn read_into(
+            &mut self,
+            destination: &mut [u8],
+        ) -> impl fast_io::Presence<Result<usize, Self::Error>> {
+            assert!(!destination.is_empty());
+            fast_io::read(&mut self.0, destination)
+        }
+    }
+    let mut source = Direct(b"payloadtail");
+    let mut limited = fast_io::take(&mut source, 7);
+    let mut bytes = [b'?'; 10];
+    fast_io::read_exact(&mut limited, &mut bytes[..7]).unwrap();
+    assert_eq!(&bytes, b"payload???");
+    assert_eq!(limited.remaining(), 0);
+    assert_eq!(fast_io::read(&mut limited, &mut bytes).unwrap(), 0);
+    assert_eq!(source.0, b"tail");
+    assert_eq!(fast_io::read(&mut source, &mut []).unwrap(), 0);
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn std_direct_reads_use_prefetch_then_bypass_a_small_buffer() {
+    use std::io::{self, Read};
+    struct Reader {
+        bytes: &'static [u8],
+        requests: Vec<usize>,
+    }
+    impl Read for Reader {
+        fn read(&mut self, destination: &mut [u8]) -> io::Result<usize> {
+            self.requests.push(destination.len());
+            self.bytes.read(destination)
+        }
+    }
+    let mut input = fast_io::Input::with_capacity(
+        4,
+        Reader {
+            bytes: b"abcdefghijkl",
+            requests: Vec::new(),
+        },
+    );
+    assert_eq!(input.fill_buf().unwrap(), b"abcd");
+    input.consume(2);
+    let mut bytes = [0; 8];
+    fast_io::read_exact(&mut input, &mut bytes).unwrap();
+    assert_eq!(&bytes, b"cdefghij");
+    assert_eq!(input.get_ref().requests, [4, 6]);
+    assert_eq!(input.fill_buf().unwrap(), b"kl");
+}
+
+#[test]
 fn bounded_records_handle_crlf_utf8_and_recovery() {
     use fast_io::{RecordError, read_line, read_record};
     for size in 1..=8 {

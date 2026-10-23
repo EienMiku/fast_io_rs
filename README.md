@@ -123,10 +123,13 @@ returning an error, allowing the next call to recover.
 buffer. Wrap a source with `take(source, byte_limit)` to read or copy a bounded
 payload without consuming the following data. Copying does not flush the sink.
 
-`read(&mut source, &mut bytes)` copies one available chunk; `read_exact` fills
+`read(&mut source, &mut bytes)` reads an available chunk; `read_exact` fills
 the destination across chunks or reports a truncated input. These work without
 `std` or allocation. With `std`, `Input::from_buffered(reader)` reuses an existing
-`BufReader` and preserves unread prefetched bytes.
+`BufReader` and preserves unread prefetched bytes. `Source::read_into` is an
+optional Presence hook for direct reads: `Input` uses it to bypass its buffer
+for large requests once prefetched bytes have been consumed. Byte-limited
+`take` views preserve this path while enforcing their limit.
 
 ## Features and checks
 

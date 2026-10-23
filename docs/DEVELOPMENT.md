@@ -23,6 +23,9 @@
   place and joins split tokens into bounded scratch storage. `scan_fold` instead
   visits borrowed chunks with no token scratch array, retaining the length limit
   and consuming failed tokens before reporting callback/length errors.
+  The optional `read_into` Presence hook lets raw reads bypass intermediate
+  buffering. `Input` preserves std BufReader prefetch before bypassing; `Take`
+  and mutable references preserve direct reads. Reported lengths are checked.
 
 All memory access in this crate is currently safe Rust. Optional dependencies
 retain their own implementation and licensing.

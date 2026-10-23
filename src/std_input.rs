@@ -1,5 +1,5 @@
 //! Standard-library buffered input.
-use crate::Source;
+use crate::{Presence, Source};
 use std::io::{self, BufRead, BufReader, Read};
 
 /// Buffered input that retries interrupted reads.
@@ -52,5 +52,13 @@ impl<R: Read> Source for Input<R> {
             "consumed beyond input buffer"
         );
         self.inner.consume(count);
+    }
+    fn read_into(&mut self, destination: &mut [u8]) -> impl Presence<io::Result<usize>> {
+        loop {
+            match self.inner.read(destination) {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                result => return result,
+            }
+        }
     }
 }

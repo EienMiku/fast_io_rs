@@ -1,5 +1,5 @@
 //! Stream transfer using the source's existing buffer.
-use crate::{Sink, Source};
+use crate::{Presence, Sink, Source};
 use core::fmt;
 
 #[derive(Debug)]
@@ -98,5 +98,12 @@ impl<S: Source> Source for Take<S> {
         assert!(count64 <= self.remaining, "consumed beyond source limit");
         self.inner.consume(count);
         self.remaining -= count64;
+    }
+    fn read_into(&mut self, destination: &mut [u8]) -> impl Presence<Result<usize, Self::Error>> {
+        let limit = usize::try_from(self.remaining).unwrap_or(usize::MAX);
+        let len = destination.len().min(limit);
+        let count = crate::read(&mut self.inner, &mut destination[..len])?;
+        self.remaining -= count as u64;
+        Ok(count)
     }
 }
