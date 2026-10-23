@@ -26,6 +26,11 @@
   The optional `read_into` Presence hook lets raw reads bypass intermediate
   buffering. `Input` preserves std BufReader prefetch before bypassing; `Take`
   and mutable references preserve direct reads. Reported lengths are checked.
+- `Reader` is the minimal raw-device input trait. `BufferedInput<R, N>` adds
+  fixed-capacity buffering without std/alloc, exposes `Source`, and bypasses an
+  empty buffer for large direct reads. `Io<R>` adapts std readers and retries
+  interruptions. Unwrapping `BufferedInput` discards its unread buffer; inspect
+  `buffer()` or keep the wrapper when unread bytes must be retained.
 
 All memory access in this crate is currently safe Rust. Optional dependencies
 retain their own implementation and licensing.

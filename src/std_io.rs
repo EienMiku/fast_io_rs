@@ -1,8 +1,8 @@
 //! Adapters for standard-library files, sockets, and locked standard streams.
-use crate::{Presence, Sink};
-use std::io::{self, IoSlice, Write};
+use crate::{Presence, Reader, Sink};
+use std::io::{self, IoSlice, Read, Write};
 
-/// Adapt a standard-library writer to the fast_io output protocol.
+/// Adapt a standard-library device to the fast_io `Sink` and `Reader` protocols.
 ///
 /// For stdout/stderr, pass a lock to hold it across the entire print operation.
 /// Borrowing a writer (`Io::new(&mut writer)`) is supported.
@@ -62,5 +62,18 @@ impl<W: Write> Sink for Io<W> {
     #[inline]
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
+    }
+}
+
+impl<R: Read> Reader for Io<R> {
+    type Error = io::Error;
+    #[inline]
+    fn read(&mut self, destination: &mut [u8]) -> io::Result<usize> {
+        loop {
+            match self.inner.read(destination) {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                result => return result,
+            }
+        }
     }
 }

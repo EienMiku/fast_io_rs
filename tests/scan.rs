@@ -167,6 +167,17 @@ fn buffered_input_retries_interrupted_reads() {
     assert_eq!(scanner.require::<i8>().unwrap(), -9);
     assert!(scanner.scan::<u8>().unwrap().is_none());
 
+    let reader = Reader {
+        input: b"12345 -9",
+        interrupt: true,
+    };
+    let mut scanner = Scanner::new(fast_io::BufferedInput::<_, 2>::new(fast_io::Io::new(
+        reader,
+    )));
+    assert_eq!(scanner.require::<u32>().unwrap(), 12345);
+    assert_eq!(scanner.require::<i8>().unwrap(), -9);
+    assert!(scanner.scan::<u8>().unwrap().is_none());
+
     // Retain prefetched bytes when switching an existing std reader to fast_io.
     use std::io::BufRead;
     let mut buffered = std::io::BufReader::with_capacity(8, b"skip 42".as_slice());

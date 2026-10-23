@@ -131,6 +131,14 @@ optional Presence hook for direct reads: `Input` uses it to bypass its buffer
 for large requests once prefetched bytes have been consumed. Byte-limited
 `take` views preserve this path while enforcing their limit.
 
+For devices outside std, implement `Reader::read` and wrap the device in
+`BufferedInput::<_, 1024>::new(device)`. Its fixed-capacity buffer uses no
+allocation and implements `Source`, so it works with the same scanner, binary
+readers and copying helpers. With std, `BufferedInput::new(Io::new(reader))`
+also provides inline buffering of a standard reader, retrying interruptions.
+Keep the wrapper to retain prefetched data; `BufferedInput::into_inner` discards
+any unread buffer, which can first be inspected with `buffer()`.
+
 ## Features and checks
 
 Default features: `std`, `float`. `std` enables `alloc`.

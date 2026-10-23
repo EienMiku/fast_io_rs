@@ -11,6 +11,7 @@ pub mod arguments;
 pub mod batch;
 pub mod binary;
 pub mod buffered;
+pub mod buffered_input;
 mod builtins;
 pub mod compose;
 #[cfg(feature = "float")]
@@ -37,6 +38,7 @@ pub mod sink;
 pub use batch::Batch;
 pub use binary::{Binary, Endian, ReadError, be, le, read_be, read_le};
 pub use buffered::Buffered;
+pub use buffered_input::{BufferedInput, Reader};
 pub use compose::{Parts, join};
 pub use encode::{Encode, write};
 #[cfg(feature = "float")]
