@@ -21,6 +21,8 @@
   Derived layouts build balanced argument trees; print macros group long calls
   in chunks of eight. This keeps ordinary wide records below default compiler
   recursion limits without asking users for a crate-level attribute.
+  An owned argument node keeps temporary radix/Debug wrappers alive through
+  deferred reserved-output queries without returning references to locals.
 - `Source` exposes a buffered byte slice. `Scanner` parses contiguous tokens in
   place and joins split tokens into bounded scratch storage. `scan_fold` instead
   visits borrowed chunks with no token scratch array, retaining the length limit
@@ -37,15 +39,23 @@
   directly and fold split tokens without `[u8; N]` scratch. A shared boundary
   loop serves the generic `scan_fold` and these integer parsers, preserving
   token limits, byte error offsets and oversized-token recovery. Even a
-  `usize::MAX` token limit is usable for primitive integer scans; methods using
-  complete-token scratch (including `scan_with`/`scan_radix`) still allocate N
-  stack bytes. The tiny-buffer benchmark compares streaming and copied tokens.
+  `usize::MAX` token limit is usable for primitive integer scans. `ScanRadix`
+  has an equivalent optional `scan_radix_stream` hook, so primitive explicit
+  bases 2..36 also avoid token scratch, with decimal delegating to `Scan`.
+  Complete-token custom parsers (`scan_with`, or `Scan`/`ScanRadix` without
+  streaming hooks) still allocate N stack bytes for split tokens.
+  The tiny-buffer benchmark compares streaming and copied tokens.
   Complete decimal parsers accumulate a provably fitting prefix without overflow
   checks and check each remaining digit. This also applies to long tokens rather
   than repeating overflow checks for the safe prefix of every 20-digit u64.
   On 64-bit targets this fitting prefix converts validated groups of eight ASCII
   digits using byte lanes in a u64. Invalid groups fall back to scalar validation
   for the original error offset; smaller targets retain scalar accumulation.
+  Cached decimal integer scans combine numeric conversion and delimiter
+  detection, avoiding a separate whitespace pass on valid contiguous tokens.
+  Missing cache, errors, oversized tokens and buffer boundaries fall back to
+  the existing framing/recovery path. Signed values accumulate negatively when
+  needed so their minimum value remains representable.
 - `Reader` is the minimal raw-device input trait. `BufferedInput<R, N>` adds
   fixed-capacity buffering without std/alloc, exposes `Source`, and bypasses an
   empty buffer for large direct reads. `Io<R>` adapts std readers and retries
@@ -77,7 +87,12 @@ wrappers, generics and renamed dependencies. Adjacent literal text is merged
 at expansion time to reduce fragments and streaming writes. Structs propagate reserve hooks;
 enums combine their alternatives' capabilities through a balanced sum type.
 Every variant must support reservation for the enum to advertise it. Arbitrary format
-specifiers and empty enums are not supported.
+width/precision specifiers and empty enums are not supported. Explicit field
+formats `x`, `X`, `b`, `o` (optionally prefixed with `#`) use the unsigned radix
+wrappers; `?` uses Debug. Bounds follow the chosen formatter, so a Debug-only
+field need not implement Encode. Radix layouts retain reserved output; Debug
+layouts use streaming/batching. Uppercase hexadecimal uses `0X` consistently
+with the direct wrapper. Unsupported specifiers are compile errors.
 
 ## Important contracts
 

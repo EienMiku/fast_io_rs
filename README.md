@@ -83,7 +83,23 @@ Raw identifiers use their plain field name in placeholders (`r#type` becomes `{t
 Enums support per-variant format/transparent attributes. They advertise reserved
 output when all their variants' formatted fields support it; otherwise streaming
 and shared-batch output remain available. Empty enums, unions and format
-specifiers inside placeholders currently require a manual implementation.
+width/precision specifiers inside placeholders currently require a manual
+implementation. Explicit fields also accept `:x`, `:X`, `:b`, and `:o` for
+unsigned integers, optionally with `#` for a prefix, and `:?` for `Debug`:
+
+```rust
+#[derive(fast_io::Encode)]
+#[encode("Packet(id={id:#x}, flags={flags:b})")]
+struct Packet {
+    id: u64,
+    flags: u8,
+}
+```
+
+Radix fields retain reserved output; Debug fields use the streaming fallback
+and only require `Debug`, without a separate `Encode` implementation.
+Uppercase hexadecimal prefixes follow `hex(...).uppercase().prefixed()` and
+produce `0X`. Implicit field indices are not supported.
 
 With `std`, `fast_io::println!("answer=", 42)?` locks stdout for the operation;
 `eprint!` / `eprintln!` target stderr. With `alloc`, `format_bytes!` returns a Vec,
@@ -100,8 +116,10 @@ assert_eq!((a, b, c), (123, -45, true));
 
 `Scanner` uses ASCII whitespace and a 256-byte token limit by default.
 `Scanner::<_, N>::with_capacity(source)` changes that limit. Contiguous tokens
-are parsed in place. Primitive decimal integers accumulate across buffers
-without token scratch storage; other parsers use bounded scratch for split tokens.
+are parsed in place. Primitive integers accumulate across buffers without token
+scratch storage, including explicit bases from 2 through 36; other parsers use
+bounded scratch for split tokens. Decimal integers also combine validation,
+conversion and boundary detection when a complete valid token is cached.
 Oversized and invalid tokens are consumed so later scans can recover.
 Use `scanner.scan_radix::<u64>(16)` for an explicit base from 2 through 36
 (no `0x` prefix), or `scan_with(parser)` to supply a parser with captured context.
@@ -119,6 +137,9 @@ Custom `Scan` types need only implement `scan_token`. An optional `scan_stream`
 method returns `impl Presence<Result<Option<Self>, ScanError<_>>>` to replace the
 default scan path, for example by calling `scan_fold`. No separate capability
 flag is needed. See [the custom scanner example](examples/custom_scan.rs).
+Custom `ScanRadix` implementations can similarly provide `scan_radix_stream`;
+the default continues to use their complete-token parser. Invalid bases are
+rejected before consuming input.
 
 `read_record(&mut source, delimiter, &mut buffer)` reads a bounded record and
 returns its length, excluding the delimiter. `read_line(&mut source, &mut buffer)`
