@@ -150,6 +150,132 @@ fn streaming_integer_hooks_match_complete_parsers_at_boundaries() {
 }
 
 #[test]
+fn streaming_radix_hooks_match_complete_parsers_at_boundaries() {
+    fn compare<T: ScanRadix + PartialEq + core::fmt::Debug>(radix: u32, tokens: &[&str]) {
+        for &token in tokens {
+            for ending in ["", " "] {
+                let input = format!(" \t{token}{ending}");
+                for size in [1, 2, 3, 8, input.len()] {
+                    let mut scanner = Scanner::new(Chunks {
+                        bytes: input.as_bytes(),
+                        size,
+                    });
+                    let actual = scanner.scan_radix::<T>(radix).map_err(|error| match error {
+                        ScanError::Parse(error) => error,
+                        other => panic!("unexpected scan error: {other:?}"),
+                    });
+                    assert_eq!(
+                        actual,
+                        T::scan_radix(token.as_bytes(), radix).map(Some),
+                        "base {radix}, {token}, chunk {size}"
+                    );
+                    assert!(scanner.scan_radix::<T>(radix).unwrap().is_none());
+                }
+            }
+        }
+    }
+    for radix in [2, 8, 10, 16, 36] {
+        compare::<u8>(
+            radix,
+            &["0", "+", "-1", "+0010", "100000000", "00001!", "ZZ!"],
+        );
+        compare::<i8>(
+            radix,
+            &["-", "--1", "-0", "+1", "-100000000", "00001!", "ZZ!"],
+        );
+    }
+    compare::<u8>(16, &["ff", "+FF", "100", "fg", "fff!", "000000ff"]);
+    compare::<i8>(16, &["7f", "80", "-80", "-81", "-8g", "-fff!", "-000080"]);
+    compare::<u128>(
+        16,
+        &[
+            "ffffffffffffffffffffffffffffffff",
+            "100000000000000000000000000000000",
+        ],
+    );
+    compare::<i128>(
+        16,
+        &[
+            "7fffffffffffffffffffffffffffffff",
+            "-80000000000000000000000000000000",
+            "-80000000000000000000000000000001",
+        ],
+    );
+}
+
+#[test]
+fn radix_streaming_preserves_limits_recovery_and_default_hooks() {
+    for size in 1..=8 {
+        let mut scanner = Scanner::<_, 4>::with_capacity(Chunks {
+            bytes: b" \tfffff ffx ffff 7",
+            size,
+        });
+        for radix in [0, 1, 37, u32::MAX] {
+            assert!(matches!(
+                scanner.scan_radix::<u8>(radix),
+                Err(ScanError::Parse(ParseError::InvalidRadix { radix: r })) if r == radix
+            ));
+        }
+        assert_eq!(scanner.get_ref().bytes, b" \tfffff ffx ffff 7");
+        assert!(matches!(
+            scanner.scan_radix::<u8>(16),
+            Err(ScanError::TokenTooLong { limit: 4 })
+        ));
+        assert!(matches!(
+            scanner.scan_radix::<u8>(16),
+            Err(ScanError::Parse(ParseError::InvalidDigit { offset: 2 }))
+        ));
+        assert!(matches!(
+            scanner.scan_radix::<u8>(16),
+            Err(ScanError::Parse(ParseError::Overflow))
+        ));
+        assert_eq!(scanner.scan_radix::<u8>(16).unwrap(), Some(7));
+    }
+
+    // No scratch array is instantiated, including through the decimal fast path.
+    let mut bytes = [b'0'; 1024];
+    bytes[1023] = b'1';
+    for radix in [2, 10, 16, 36] {
+        let mut scanner = Scanner::<_, { usize::MAX }>::with_capacity(Chunks {
+            bytes: &bytes,
+            size: 3,
+        });
+        assert_eq!(scanner.scan_radix::<u8>(radix).unwrap(), Some(1));
+        bytes[0] = b'-';
+        let mut scanner = Scanner::<_, { usize::MAX }>::with_capacity(Chunks {
+            bytes: &bytes,
+            size: 3,
+        });
+        assert_eq!(scanner.scan_radix::<i8>(radix).unwrap(), Some(-1));
+        bytes[0] = b'0';
+    }
+    let mut zero = Scanner::<_, 0>::with_capacity(b" 1".as_slice());
+    assert!(matches!(
+        zero.scan_radix::<u8>(2),
+        Err(ScanError::TokenTooLong { limit: 0 })
+    ));
+    assert_eq!(zero.scan_radix::<u8>(2).unwrap(), None);
+
+    // Existing user implementations still need only the complete-token parser.
+    #[derive(Debug, PartialEq)]
+    struct Wrapped(u8);
+    impl ScanRadix for Wrapped {
+        fn scan_radix(token: &[u8], radix: u32) -> Result<Self, ParseError> {
+            u8::scan_radix(token, radix).map(Self)
+        }
+    }
+    assert!(const { !fast_io::provided2(Wrapped::scan_radix_stream::<&[u8], 8>) });
+    let mut scanner = Scanner::new(Chunks {
+        bytes: b"+ff",
+        size: 1,
+    });
+    assert_eq!(
+        scanner.scan_radix::<Wrapped>(16).unwrap(),
+        Some(Wrapped(255))
+    );
+}
+
+#[test]
 fn decimal_chunks_validate_every_byte_lane() {
     for seed in [*b"00000000", *b"99999999", *b"12345678"] {
         for lane in 0..8 {

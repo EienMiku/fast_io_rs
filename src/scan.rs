@@ -77,15 +77,30 @@ pub trait Scan: Sized {
 /// the target type. Prefixes such as 0x and separators such as _ are not accepted.
 pub trait ScanRadix: Sized {
     fn scan_radix(token: &[u8], radix: u32) -> Result<Self, ParseError>;
+
+    /// Optionally parse a token across source buffers without joining its bytes.
+    ///
+    /// `Scanner::scan_radix` selects this hook after validating the base. Like
+    /// `Scan::scan_stream`, implementations must honor the token length limit,
+    /// consume invalid tokens, and agree with the complete-token parser. Use
+    /// `scan_fold` or `scan_with` here; calling `scanner.scan_radix::<Self>()`
+    /// would recurse. The default requires only `scan_radix` to be implemented.
+    fn scan_radix_stream<S: Source, const N: usize>(
+        _scanner: &mut Scanner<S, N>,
+        _radix: u32,
+    ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+        missing()
+    }
 }
 
 /// ASCII-whitespace token scanner with a configurable maximum token length.
 ///
 /// Types with only `scan_token` parse contiguous tokens directly and copy split
 /// tokens into bounded stack storage. An optional `scan_stream` hook can avoid
-/// that scratch array; primitive decimal integers use incremental accumulation
-/// across buffers while retaining direct parsing for contiguous tokens. Invalid
-/// and oversized tokens are consumed completely, so a subsequent scan can recover.
+/// that scratch array; primitive integers use incremental accumulation in both
+/// decimal and explicit-base scans while retaining direct parsing for contiguous
+/// tokens. Invalid and oversized tokens are consumed completely, so a subsequent
+/// scan can recover.
 /// A source error can occur after consuming part of a token; the caller should
 /// treat that token as lost.
 #[derive(Debug)]
@@ -293,12 +308,16 @@ impl<S: Source, const N: usize> Scanner<S, N> {
     }
 
     /// Read one integer token in an explicit base; invalid bases do not consume input.
+    #[inline]
     pub fn scan_radix<T: ScanRadix>(
         &mut self,
         radix: u32,
     ) -> Result<Option<T>, ScanError<S::Error>> {
         if !(2..=36).contains(&radix) {
             return Err(ScanError::Parse(ParseError::InvalidRadix { radix }));
+        }
+        if const { crate::provided2(T::scan_radix_stream::<S, N>) } {
+            return T::scan_radix_stream(self, radix).into_value();
         }
         self.scan_with(|token| T::scan_radix(token, radix))
     }
@@ -388,6 +407,28 @@ macro_rules! unsigned {
             }
         }
         impl ScanRadix for $ty {
+            fn scan_radix_stream<S: Source, const N: usize>(
+                scanner: &mut Scanner<S, N>,
+                radix: u32,
+            ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+                if radix == 10 { return Self::scan_stream(scanner).into_value(); }
+                if !(2..=36).contains(&radix) {
+                    return Err(ScanError::Parse(ParseError::InvalidRadix { radix }));
+                }
+                scanner.scan_fold_impl((0 as Self, 0usize, false), |(mut value, offset, mut digits), chunk| {
+                    let start = usize::from(offset == 0 && chunk[0] == b'+');
+                    for (index, &byte) in chunk[start..].iter().enumerate() {
+                        let digit = radix_digit(byte, radix, offset + start + index)?;
+                        value = value.checked_mul(radix as Self)
+                            .and_then(|n| n.checked_add(digit as Self))
+                            .ok_or(ParseError::Overflow)?;
+                        digits = true;
+                    }
+                    Ok((value, offset + chunk.len(), digits))
+                }, |(value, _, digits)| {
+                    if digits { Ok(value) } else { Err(ParseError::Empty) }
+                }, Some(|token: &[u8]| Self::scan_radix(token, radix)))
+            }
             fn scan_radix(token: &[u8], radix: u32) -> Result<Self, ParseError> {
                 if radix == 10 { return Self::scan_token(token); }
                 if !(2..=36).contains(&radix) { return Err(ParseError::InvalidRadix { radix }); }
@@ -466,6 +507,36 @@ macro_rules! signed {
             }
         }
         impl ScanRadix for $ty {
+            fn scan_radix_stream<S: Source, const N: usize>(
+                scanner: &mut Scanner<S, N>,
+                radix: u32,
+            ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+                if radix == 10 { return Self::scan_stream(scanner).into_value(); }
+                if !(2..=36).contains(&radix) {
+                    return Err(ScanError::Parse(ParseError::InvalidRadix { radix }));
+                }
+                scanner.scan_fold_impl((0 as Self, false, 0usize, false), |(mut value, mut negative, offset, mut digits), chunk| {
+                    let start = if offset == 0 {
+                        negative = chunk[0] == b'-';
+                        usize::from(negative || chunk[0] == b'+')
+                    } else {
+                        0
+                    };
+                    for (index, &byte) in chunk[start..].iter().enumerate() {
+                        let digit = radix_digit(byte, radix, offset + start + index)?;
+                        let multiplied = value.checked_mul(radix as Self).ok_or(ParseError::Overflow)?;
+                        value = if negative {
+                            multiplied.checked_sub(digit as Self)
+                        } else {
+                            multiplied.checked_add(digit as Self)
+                        }.ok_or(ParseError::Overflow)?;
+                        digits = true;
+                    }
+                    Ok((value, negative, offset + chunk.len(), digits))
+                }, |(value, _, _, digits)| {
+                    if digits { Ok(value) } else { Err(ParseError::Empty) }
+                }, Some(|token: &[u8]| Self::scan_radix(token, radix)))
+            }
             fn scan_radix(token: &[u8], radix: u32) -> Result<Self, ParseError> {
                 if radix == 10 { return Self::scan_token(token); }
                 if !(2..=36).contains(&radix) { return Err(ParseError::InvalidRadix { radix }); }
