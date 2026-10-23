@@ -1,4 +1,11 @@
 //! Derive an Encode implementation with static, allocation-free field dispatch.
+//!
+//! `#[encode("{field}")]` uses a field's `Encode` implementation; tuple fields
+//! use their numeric index. `:x`, `:X`, `:b`, and `:o` select the corresponding
+//! unsigned radix formatter, with `#` enabling its prefix (`0X` for `#X`).
+//! `:?` uses `core::fmt::Debug` and does not require the field to implement
+//! `Encode`. Width, precision, implicit field indices, and other specifiers are
+//! rejected. Radix fields preserve reserved output; Debug fields use streaming.
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
@@ -58,7 +65,96 @@ struct Field {
 }
 enum Part {
     Text(String),
-    Field(usize),
+    Field(usize, Format),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Format {
+    Native,
+    Debug,
+    Radix {
+        base: u8,
+        uppercase: bool,
+        prefix: bool,
+    },
+}
+
+impl Format {
+    fn parse(specifier: &str, format: &LitStr) -> syn::Result<Self> {
+        let (prefix, kind) = specifier
+            .strip_prefix('#')
+            .map_or((false, specifier), |kind| (true, kind));
+        match (prefix, kind) {
+            (false, "") => Ok(Self::Native),
+            (false, "?") => Ok(Self::Debug),
+            (_, "x" | "X" | "b" | "o") => Ok(Self::Radix {
+                base: match kind {
+                    "b" => 2,
+                    "o" => 8,
+                    _ => 16,
+                },
+                uppercase: kind == "X",
+                prefix,
+            }),
+            _ => Err(syn::Error::new_spanned(
+                format,
+                format!(
+                    "unsupported encode format specifier {specifier:?}; expected x, X, b, o (optionally #), or ?"
+                ),
+            )),
+        }
+    }
+
+    fn expression(
+        self,
+        reference: proc_macro2::TokenStream,
+        path: &syn::Path,
+    ) -> proc_macro2::TokenStream {
+        match self {
+            Self::Native => reference,
+            Self::Debug => quote!(#path::debug(#reference)),
+            Self::Radix {
+                base,
+                uppercase,
+                prefix,
+            } => {
+                let formatter = match base {
+                    2 => quote!(#path::bin),
+                    8 => quote!(#path::oct),
+                    _ => quote!(#path::hex),
+                };
+                let mut value = quote!(#formatter(*(#reference)));
+                if uppercase {
+                    value = quote!(#value.uppercase());
+                }
+                if prefix {
+                    value = quote!(#value.prefixed());
+                }
+                value
+            }
+        }
+    }
+}
+
+fn add_bounds(generics: &mut syn::Generics, parts: &[Part], fields: &[Field], path: &syn::Path) {
+    let uses: BTreeSet<_> = parts
+        .iter()
+        .filter_map(|part| match part {
+            Part::Field(index, format) => Some((*index, *format)),
+            Part::Text(_) => None,
+        })
+        .collect();
+    for (index, format) in uses {
+        let ty = &fields[index].ty;
+        let predicate = match format {
+            Format::Native => parse_quote!(#ty: #path::Encode),
+            Format::Debug => parse_quote!(#ty: ::core::fmt::Debug),
+            Format::Radix { .. } => {
+                parse_quote!(#ty: #path::radix::Unsigned + ::core::marker::Copy)
+            }
+        };
+        generics.make_where_clause().predicates.push(predicate);
+    }
 }
 
 // Default layouts introduce separate name, punctuation and field-label pieces.
@@ -116,9 +212,11 @@ fn parse_format(format: &LitStr, fields: &[Field]) -> syn::Result<Vec<Part>> {
                         "unclosed field placeholder",
                     ));
                 }
+                let (name, specifier) = name.split_once(':').unwrap_or((&name, ""));
+                let mode = Format::parse(specifier, format)?;
                 let index = fields.iter().position(|f| f.label == name && !f.skip)
-                    .ok_or_else(|| syn::Error::new_spanned(format, format!("unknown or skipped field {{{name}}}; format specifiers are not supported")))?;
-                parts.push(Part::Field(index));
+                    .ok_or_else(|| syn::Error::new_spanned(format, format!("unknown or skipped field {{{name}}}; placeholders must name a field or tuple index")))?;
+                parts.push(Part::Field(index, mode));
             }
             '}' => {
                 return Err(syn::Error::new_spanned(
@@ -220,7 +318,7 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
                 "transparent requires exactly one non-skipped field",
             ));
         }
-        vec![Part::Field(active[0])]
+        vec![Part::Field(active[0], Format::Native)]
     } else if let Some(format) = cfg.format {
         parse_format(&format, &fields)?
     } else {
@@ -238,28 +336,15 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             if matches!(data.fields, Fields::Named(_)) {
                 parts.push(Part::Text(format!("{}: ", fields[index].label)));
             }
-            parts.push(Part::Field(index));
+            parts.push(Part::Field(index, Format::Native));
         }
         parts.push(Part::Text(close.into()));
         parts
     };
 
     let parts = coalesce_parts(parts);
-    let used_fields: BTreeSet<_> = parts
-        .iter()
-        .filter_map(|p| match p {
-            Part::Field(i) => Some(*i),
-            _ => None,
-        })
-        .collect();
     let mut generics = input.generics.clone();
-    for &index in &used_fields {
-        let ty = &fields[index].ty;
-        generics
-            .make_where_clause()
-            .predicates
-            .push(parse_quote!(#ty: #path::Encode));
-    }
+    add_bounds(&mut generics, &parts, &fields, &path);
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
     let mut used = used_names(&input);
     let sink = fresh("__FastIoSink", &mut used);
@@ -270,31 +355,18 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let out_ident = fresh("output", &mut used);
     let batch_ident = fresh("batch", &mut used);
 
-    let expressions: Vec<_> = parts
-        .iter()
-        .filter_map(|part| match part {
-            Part::Text(text) if text.is_empty() => None,
-            Part::Text(text) => {
-                let literal = LitStr::new(text, Span::call_site());
-                Some(quote!(#literal))
-            }
-            Part::Field(index) => {
-                let member = &fields[*index].member;
-                Some(quote!(self.#member))
-            }
-        })
-        .collect();
     let heads: Vec<_> = parts
         .iter()
         .filter_map(|part| match part {
             Part::Text(text) if text.is_empty() => None,
             Part::Text(text) => {
                 let literal = LitStr::new(text, Span::call_site());
-                Some(quote!(#literal))
+                Some((quote!(#literal), false))
             }
-            Part::Field(index) => {
+            Part::Field(index, format) => {
                 let member = &fields[*index].member;
-                Some(quote!(&self.#member))
+                let value = format.expression(quote!(&self.#member), &path);
+                Some((value, *format != Format::Native))
             }
         })
         .collect();
@@ -305,9 +377,32 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             let literal = syn::LitByteStr::new(text.as_bytes(), Span::call_site());
             Some(quote!(#path::Sink::write_all(#out_ident, #literal)?;))
         }
-        Part::Field(index) => {
+        Part::Field(index, format) => {
             let member = &fields[*index].member;
-            Some(quote!(#path::write(#out_ident, &self.#member)?;))
+            let value = format.expression(quote!(&self.#member), &path);
+            if *format == Format::Native {
+                Some(quote!(#path::write(#out_ident, #value)?;))
+            } else {
+                Some(quote!(#path::write(#out_ident, &#value)?;))
+            }
+        }
+    });
+    let batch = parts.iter().filter_map(|part| match part {
+        Part::Text(text) if text.is_empty() => None,
+        Part::Text(text) => {
+            let literal = LitStr::new(text, Span::call_site());
+            Some(quote!(#batch_ident.push(#literal)?;))
+        }
+        Part::Field(index, format) => {
+            let member = &fields[*index].member;
+            let value = format.expression(quote!(&self.#member), &path);
+            if *format == Format::Native {
+                Some(quote!(#batch_ident.push(#value)?;))
+            } else {
+                // A temporary formatter cannot be borrowed for the batch's
+                // entire lifetime. Its encoding is copied into scratch now.
+                Some(quote!(#path::Encode::encode(&#value, #batch_ident)?;))
+            }
         }
     });
     let borrowed = if cfg.transparent {
@@ -339,7 +434,7 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             fn encode_batch<#lifetime, #sink: #path::Sink + ?::core::marker::Sized, const #bytes: ::core::primitive::usize, const #pieces: ::core::primitive::usize>(
                 &#lifetime self, #batch_ident: &mut #path::Batch<'_, #lifetime, #sink, #bytes, #pieces>
             ) -> impl #path::Presence<::core::result::Result<(), #sink::Error>> {
-                #(#batch_ident.push(&#expressions)?;)*
+                #(#batch)*
                 ::core::result::Result::Ok(())
             }
         }
@@ -396,7 +491,7 @@ fn expand_enum(
                     "transparent requires exactly one non-skipped field",
                 ));
             }
-            vec![Part::Field(active[0])]
+            vec![Part::Field(active[0], Format::Native)]
         } else if let Some(format) = variant_cfg.format {
             parse_format(&format, &fields)?
         } else {
@@ -418,7 +513,7 @@ fn expand_enum(
                 if matches!(variant.fields, Fields::Named(_)) {
                     parts.push(Part::Text(format!("{}: ", fields[index].label)));
                 }
-                parts.push(Part::Field(index));
+                parts.push(Part::Field(index, Format::Native));
             }
             parts.push(Part::Text(close.into()));
             parts
@@ -427,17 +522,11 @@ fn expand_enum(
         let used_fields: BTreeSet<_> = parts
             .iter()
             .filter_map(|p| match p {
-                Part::Field(i) => Some(*i),
+                Part::Field(i, _) => Some(*i),
                 _ => None,
             })
             .collect();
-        for &index in &used_fields {
-            let ty = &fields[index].ty;
-            generics
-                .make_where_clause()
-                .predicates
-                .push(parse_quote!(#ty: #path::Encode));
-        }
+        add_bounds(&mut generics, &parts, &fields, path);
         let bindings: Vec<_> = fields
             .iter()
             .enumerate()
@@ -464,9 +553,14 @@ fn expand_enum(
                 let literal = syn::LitByteStr::new(text.as_bytes(), Span::call_site());
                 Some(quote!(#path::Sink::write_all(#out_ident, #literal)?;))
             }
-            Part::Field(index) => {
+            Part::Field(index, format) => {
                 let binding = &bindings[*index];
-                Some(quote!(#path::write(#out_ident, #binding)?;))
+                let value = format.expression(binding.clone(), path);
+                if *format == Format::Native {
+                    Some(quote!(#path::write(#out_ident, #value)?;))
+                } else {
+                    Some(quote!(#path::write(#out_ident, &#value)?;))
+                }
             }
         });
         let batch = parts.iter().filter_map(|part| match part {
@@ -475,9 +569,14 @@ fn expand_enum(
                 let literal = LitStr::new(text, Span::call_site());
                 Some(quote!(#batch_ident.push(#literal)?;))
             }
-            Part::Field(index) => {
+            Part::Field(index, format) => {
                 let binding = &bindings[*index];
-                Some(quote!(#batch_ident.push(#binding)?;))
+                let value = format.expression(binding.clone(), path);
+                if *format == Format::Native {
+                    Some(quote!(#batch_ident.push(#value)?;))
+                } else {
+                    Some(quote!(#path::Encode::encode(&#value, #batch_ident)?;))
+                }
             }
         });
         // Construct direct field borrows. Taking &binding would borrow a local
@@ -488,9 +587,12 @@ fn expand_enum(
                 Part::Text(text) if text.is_empty() => continue,
                 Part::Text(text) => {
                     let literal = LitStr::new(text, Span::call_site());
-                    quote!(#literal)
+                    (quote!(#literal), false)
                 }
-                Part::Field(index) => bindings[*index].clone(),
+                Part::Field(index, format) => (
+                    format.expression(bindings[*index].clone(), path),
+                    *format != Format::Native,
+                ),
             };
             heads.push(head);
         }
@@ -563,15 +665,55 @@ fn reserved_choice(
 
 // Build the formatting list directly, with logarithmic depth. Going through
 // recursive macro invocations hit the default recursion limit on wide structs.
-fn argument_tree(heads: &[proc_macro2::TokenStream], path: &syn::Path) -> proc_macro2::TokenStream {
+fn argument_tree(
+    heads: &[(proc_macro2::TokenStream, bool)],
+    path: &syn::Path,
+) -> proc_macro2::TokenStream {
     match heads {
         [] => quote!(#path::arguments::End),
-        [head] => quote!(#path::arguments::Cons { head: #head, tail: #path::arguments::End }),
+        [(head, true)] => quote!(#path::arguments::Owned(#head)),
+        [(head, false)] => {
+            quote!(#path::arguments::Cons { head: #head, tail: #path::arguments::End })
+        }
         _ => {
             let split = heads.len().div_ceil(2);
             let left = argument_tree(&heads[..split], path);
             let right = argument_tree(&heads[split..], path);
             quote!(#path::arguments::Joined { left: #left, right: #right })
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsupported_specs_and_unknown_fields_are_rejected() {
+        let input: DeriveInput = parse_quote! {
+            struct Item { value: u32, #[encode(skip)] hidden: u32 }
+        };
+        let Data::Struct(data) = input.data else {
+            unreachable!()
+        };
+        let fields = collect_fields(&data.fields).unwrap();
+        for format in ["{value:08x}", "{value:#?}", "{value:.2}", "{value:z}"] {
+            let error = match parse_format(&LitStr::new(format, Span::call_site()), &fields) {
+                Err(error) => error,
+                Ok(_) => panic!("accepted unsupported format {format}"),
+            };
+            assert!(
+                error
+                    .to_string()
+                    .contains("unsupported encode format specifier")
+            );
+        }
+        for format in ["{:x}", "{other:x}", "{hidden:#x}"] {
+            let error = match parse_format(&LitStr::new(format, Span::call_site()), &fields) {
+                Err(error) => error,
+                Ok(_) => panic!("accepted unknown or skipped field {format}"),
+            };
+            assert!(error.to_string().contains("unknown or skipped field"));
         }
     }
 }

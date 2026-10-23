@@ -160,3 +160,63 @@ fn wide_layouts_compile_with_default_limits_and_preserve_argument_order() {
         f54, f55, f56, f57, f58, f59, f60, f61, f62, f63
     );
 }
+
+#[test]
+fn explicit_field_formatters_preserve_bounds_reservations_and_batch_order() {
+    // Only Debug is needed for D; requiring Encode here would reject DebugOnly.
+    #[derive(Debug)]
+    struct DebugOnly;
+    #[derive(Encode)]
+    #[encode("{type:#x}/{value:?}/{type:#X}")]
+    struct Mixed<T, D> {
+        r#type: T,
+        value: D,
+    }
+    use fast_io as renamed;
+    #[derive(renamed::Encode)]
+    #[encode(crate = "renamed")]
+    #[encode("{0:x}/{0:X}/{0:b}/{0:o}/{0:#x}/{0:#X}/{0:#b}/{0:#o}/{0:}")]
+    struct Radices<T>(T);
+    #[derive(Encode)]
+    enum RadixEvent<T> {
+        #[encode("[{number:#x}]")]
+        Named { number: T },
+        #[encode("<{0:#b}>")]
+        Tuple(T),
+    }
+
+    assert!(const { fast_io::provided(Radices::<u128>::reserve_size) });
+    assert!(const { fast_io::provided2(Radices::<u128>::encode_reserved) });
+    assert!(const { fast_io::provided(RadixEvent::<u64>::reserve_size) });
+    assert!(!const { fast_io::provided(Mixed::<u64, DebugOnly>::reserve_size) });
+    assert!(!const { fast_io::provided2(Mixed::<u64, DebugOnly>::encode_reserved) });
+
+    let mut storage = [0; 1024];
+    let mut output = fast_io::SliceSink::new(&mut storage);
+    for value in [0, 42, u128::MAX] {
+        let expected = format!(
+            "{value:x}/{value:X}/{value:b}/{value:o}/{value:#x}/0X{value:X}/{value:#b}/{value:#o}/{value}"
+        );
+        let formatted = Radices(value);
+        // The native decimal field advertises an upper bound rather than the
+        // current value's exact length.
+        assert!(formatted.reserve_size().into_value() >= expected.len());
+        output.clear();
+        fast_io::print!(&mut output; formatted).unwrap();
+        assert_eq!(output.as_bytes(), expected.as_bytes());
+        // The same fields through tiny scratch storage exercise repeated drains
+        // and temporary formatters, without retaining references to temporaries.
+        output.clear();
+        let mut batch = fast_io::Batch::<_, 4, 2>::new(&mut output);
+        batch.push(&formatted).unwrap();
+        batch.finish().unwrap();
+        assert_eq!(output.as_bytes(), expected.as_bytes());
+    }
+    output.clear();
+    fast_io::print!(&mut output;
+        RadixEvent::Named { number: 255u64 }, " ", RadixEvent::Tuple(5u64), " ",
+        Mixed { r#type: 42u64, value: DebugOnly }
+    )
+    .unwrap();
+    assert_eq!(output.as_bytes(), b"[0xff] <0b101> 0x2a/DebugOnly/0X2A");
+}
