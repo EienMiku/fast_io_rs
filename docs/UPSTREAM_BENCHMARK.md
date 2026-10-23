@@ -127,6 +127,12 @@ again retains every sample. These noisy snapshots do not establish an improvemen
 on every input or target. A focused byte-lane check covers all 256 byte values in
 each of the eight positions, including non-ASCII bytes and invalid controls.
 
+Word-at-a-time whitespace searches were also tried separately from decimal
+conversion. Broader `scan-u8`/`scan-u32`/`scan` comparisons found regressions on
+short tokens despite improvements on full-width tokens. Those framing changes
+were not retained; the shipping scanner keeps its scalar whitespace search.
+The expanded workloads remain available to evaluate future changes.
+
 ## Current upstream build limitation
 
 At revision `7a6fa9b680de8355f9f743e0f8950492cf5a42f0`, including `fast_io.h`

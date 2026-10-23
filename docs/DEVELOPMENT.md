@@ -125,6 +125,9 @@ See [DESIGN.md](DESIGN.md) for the optional-hook mechanism and a codegen probe.
 - Compare the upstream C++ implementation with matched workloads using
   `tools/compare_upstream.py`; see `UPSTREAM_BENCHMARK.md` for the external
   pinned checkout, byte checks, and the current hosted-header build limitation.
+  Test short as well as full-width integers before changing token framing:
+  word-at-a-time whitespace-search experiments helped long tokens but regressed
+  1–3 digit inputs, and were not adopted.
 - Measure non-loopback sockets and varied pipe workloads before adding native
   handles or more complex OS specialization. File, pipe and loopback TCP
   benchmarks check matching bytes and distinguish per-record scatter from
