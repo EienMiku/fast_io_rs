@@ -2,16 +2,22 @@
 use fast_io::{Input, Scanner};
 use std::{hint::black_box, time::Instant};
 
-fn bench(label: &str, count: usize, expected: u64, mut run: impl FnMut() -> u64) {
-    let mut times = [0u128; 5];
-    for elapsed in &mut times {
-        let start = Instant::now();
-        let checksum = black_box(run());
-        *elapsed = start.elapsed().as_nanos();
-        assert_eq!(checksum, expected);
+fn standard(data: &[u8]) -> u64 {
+    std::str::from_utf8(data)
+        .unwrap()
+        .split_ascii_whitespace()
+        .fold(0u64, |n, s| n.wrapping_add(s.parse::<u64>().unwrap()))
+}
+fn scan<S: fast_io::Source>(source: S) -> u64
+where
+    S::Error: std::fmt::Debug,
+{
+    let mut scan = Scanner::new(source);
+    let mut sum = 0u64;
+    while let Some(n) = scan.scan::<u64>().unwrap() {
+        sum = sum.wrapping_add(n);
     }
-    times.sort_unstable();
-    println!("{label:28} {:9.2} ns/token", times[2] as f64 / count as f64);
+    sum
 }
 fn main() {
     let count = std::env::args()
@@ -26,30 +32,35 @@ fn main() {
         fast_io::println!(&mut data; value).unwrap();
         expected = expected.wrapping_add(value);
     }
-    let text = std::str::from_utf8(&data).unwrap();
     println!(
         "{count} unsigned decimal tokens, {} input bytes",
         data.len()
     );
-    bench("std split + parse", count, expected, || {
-        black_box(text)
-            .split_ascii_whitespace()
-            .fold(0u64, |n, s| n.wrapping_add(s.parse::<u64>().unwrap()))
-    });
-    bench("Scanner<&[u8]>", count, expected, || {
-        let mut scan = Scanner::new(black_box(data.as_slice()));
-        let mut sum = 0u64;
-        while let Some(n) = scan.scan::<u64>().unwrap() {
-            sum = sum.wrapping_add(n);
+    type Parser = fn(&[u8]) -> u64;
+    let parsers: [(&str, Parser); 3] = [
+        ("std UTF-8 + split + parse", standard),
+        ("Scanner<&[u8]>", |bytes| scan(bytes)),
+        ("Scanner<Input<&[u8]>>", |bytes| scan(Input::new(bytes))),
+    ];
+    for (_, parser) in parsers {
+        assert_eq!(black_box(parser(black_box(&data))), expected);
+    }
+    let mut times = [[0u128; 5]; 3];
+    for round in 0..5 {
+        // Rotate the first parser so no implementation always runs first.
+        for step in 0..3 {
+            let index = (round + step) % 3;
+            let start = Instant::now();
+            let checksum = black_box(parsers[index].1(black_box(&data)));
+            times[index][round] = start.elapsed().as_nanos();
+            assert_eq!(checksum, expected);
         }
-        sum
-    });
-    bench("Scanner<Input<&[u8]>>", count, expected, || {
-        let mut scan = Scanner::new(Input::new(black_box(data.as_slice())));
-        let mut sum = 0u64;
-        while let Some(n) = scan.scan::<u64>().unwrap() {
-            sum = sum.wrapping_add(n);
-        }
-        sum
-    });
+    }
+    for ((label, _), mut samples) in parsers.into_iter().zip(times) {
+        samples.sort_unstable();
+        println!(
+            "{label:28} {:9.2} ns/token",
+            samples[2] as f64 / count as f64
+        );
+    }
 }

@@ -8,7 +8,8 @@ or a prediction of disk, terminal, or network throughput.
 - Windows x86-64, Intel Core i7-11800H @ 2.30 GHz.
 - Rust 1.99.1 (`58cf8f9c3`, 2026-10-13), stable, default release profile.
 - Five samples after warm-up; report each implementation's median.
-- Runs alternate implementation order to reduce order effects.
+- Formatting runs alternate implementation order; the current scanner benchmark
+  rotates it. Older scanner snapshots below used a fixed order without a warm-up.
 - No CPU affinity, fixed frequency, or isolated machine was used. Compare paired
   results in one run; differences between snapshots include machine noise.
 
@@ -39,14 +40,22 @@ the values, buffer size, device and available hooks.
 ## Integer scanning
 
 The workload contains 200,000 deterministic decimal `u64` tokens (4,079,493 bytes).
-The baseline splits on ASCII whitespace and uses UTF-8 validation plus Rust's
-integer parser. The other paths use `Scanner` over a slice or `Input` backed by
-the same in-memory bytes. The example checks checksums before reporting timing.
+The current baseline validates the byte buffer as UTF-8, splits on ASCII
+whitespace, and uses Rust's integer parser. The other paths use `Scanner` over a
+slice or `Input` backed by the same in-memory bytes. The example checks checksums
+before reporting timing. The two historical snapshots below validated UTF-8
+outside the timed section and measured parsers in a fixed order, so they have
+weaker controls than the current benchmark.
 
 | Commit / implementation | std ns/token | slice ns/token | buffered ns/token |
 | --- | ---: | ---: | ---: |
 | `daa6ed9`, initial scanner | 42.41 | 52.67 | 55.73 |
 | `d394988`, streamlined scanning and short-integer parsing | 36.90 | 28.18 | 26.71 |
+| Warm-up + rotated order, timed UTF-8 validation (current recipe) | 24.00 | 24.91 | 27.62 |
+
+The more controlled run puts this slice scanner close to the standard baseline,
+with no demonstrated speed advantage. The earlier apparent advantage should not
+be generalized; both benchmark method and machine conditions changed.
 
 The parser validates digits and uses checked arithmetic for values that could
 overflow. Short token lengths that prove overflow impossible use a simpler
