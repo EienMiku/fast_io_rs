@@ -61,6 +61,27 @@ enum Part {
     Field(usize),
 }
 
+// Default layouts introduce separate name, punctuation and field-label pieces.
+// Merge neighboring literals at expansion time so they occupy one fragment and
+// require one write even when a field forces streaming output.
+fn coalesce_parts(parts: Vec<Part>) -> Vec<Part> {
+    let mut merged = Vec::with_capacity(parts.len());
+    for part in parts {
+        match part {
+            Part::Text(text) if text.is_empty() => {}
+            Part::Text(text) => {
+                if let Some(Part::Text(previous)) = merged.last_mut() {
+                    previous.push_str(&text);
+                } else {
+                    merged.push(Part::Text(text));
+                }
+            }
+            field => merged.push(field),
+        }
+    }
+    merged
+}
+
 fn parse_format(format: &LitStr, fields: &[Field]) -> syn::Result<Vec<Part>> {
     let value = format.value();
     let mut chars = value.chars().peekable();
@@ -223,6 +244,7 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
         parts
     };
 
+    let parts = coalesce_parts(parts);
     let used_fields: BTreeSet<_> = parts
         .iter()
         .filter_map(|p| match p {
@@ -401,6 +423,7 @@ fn expand_enum(
             parts.push(Part::Text(close.into()));
             parts
         };
+        let parts = coalesce_parts(parts);
         let used_fields: BTreeSet<_> = parts
             .iter()
             .filter_map(|p| match p {

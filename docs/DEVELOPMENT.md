@@ -40,7 +40,8 @@ adapters; raw partial/exact reads; existing BufReader reuse; optional struct/enu
 and reproducible formatting/scanning/file-output/loopback-TCP microbenchmarks.
 
 The derive supports per-type/per-variant layouts, skipping fields, transparent
-wrappers, generics and renamed dependencies. Structs propagate reserve hooks;
+wrappers, generics and renamed dependencies. Adjacent literal text is merged
+at expansion time to reduce fragments and streaming writes. Structs propagate reserve hooks;
 enums combine their alternatives' capabilities through a balanced sum type.
 Every variant must support reservation for the enum to advertise it. Arbitrary format
 specifiers and empty enums are not supported.
