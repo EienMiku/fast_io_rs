@@ -165,8 +165,8 @@ impl<H: Encode + ?Sized, T: Arguments> Arguments for Cons<'_, H, T> {
 }
 
 impl<H: Encode> Arguments for Owned<H> {
-    const RESERVABLE: bool = provided(H::borrowed_bytes)
-        || (provided(H::reserve_size) && provided2(H::encode_reserved));
+    const RESERVABLE: bool =
+        provided(H::borrowed_bytes) || (provided(H::reserve_size) && provided2(H::encode_reserved));
     #[inline]
     fn reserve_size(&self) -> Option<usize> {
         Cons {
