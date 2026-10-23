@@ -181,6 +181,12 @@ failed measurement records are linked from `UPSTREAM_BENCHMARK.md`.
 
 ## Next priorities
 
+- The fixed-buffer follow-up tested inlining SliceSink accessors and forcing
+  integer reserved wrappers inline. Neither produced a reliable incremental
+  fixed-buffer improvement in the larger confirmations; both were reverted.
+  The unchanged old binary also reversed the earlier C++ gap in longer runs.
+  See `UPSTREAM_BENCHMARK.md`; improve measurement control before interpreting
+  a small absolute ns/record gap as an architectural bottleneck.
 - Compare the upstream C++ implementation with matched workloads using
   `tools/compare_upstream.py`; see `UPSTREAM_BENCHMARK.md` for the external
   pinned checkout, byte checks, and the current hosted-header build limitation.

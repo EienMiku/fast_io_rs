@@ -80,6 +80,58 @@ Safe checked Rust and the C++ upstream also offer different failure contracts.
 
 ## Measured comparisons
 
+### Fixed-buffer follow-up: inline candidates not retained
+
+The user requested another pass on the fixed-buffer result. The runtime at
+`a39492a` was compared with two small candidates: A added `#[inline]` to the
+seven `SliceSink` constructor/accessor methods; B additionally changed the
+integer macros' `encode_reserved` methods from `#[inline]` to
+`#[inline(always)]`. Assembly inspection had shown that the thin integer
+wrappers could remain calls even though their decimal helper was inlined.
+
+Both candidates were reverted after measurement. The short first run favored
+A, but the larger confirmation did not reproduce that improvement:
+
+| Candidate / samples / records per sample | C++ fixed ns/record | Old Rust | Candidate |
+| --- | ---: | ---: | ---: |
+| A / 15 / 2,000,000 | 47.28 | 43.27 | 40.76 |
+| A+B / 15 / 5,000,000 | 32.69 | 30.24 | 29.53 |
+| A+B / 21 / 10,000,000 | 29.89 | 27.59 | 27.16 |
+| A / 15 / 10,000,000 | 33.93 | 31.22 | 31.58 |
+
+The final A run's median within-round candidate/old ratio was 0.996 for fixed
+buffers and 0.993 for growing buffers, effectively unchanged relative to noise.
+An additional 15-sample A+B-versus-A comparison had a fixed-buffer paired ratio
+of 1.008. This does not support retaining forced inlining for this workload.
+The observed earlier 14% C++ advantage was also not stable across these runs:
+the unchanged old Rust executable was already faster than C++ in the final
+long-run comparison. None of this establishes a general Rust speed advantage.
+
+The old executable's SHA-256 is
+`7f099eb2bf8ceb685e719467188b808f99d5ab79e12c1722971750c046edf853`, matching
+the clean `941f0ec` integrated report below; its measured decimal path is
+unchanged at `a39492a`. All runs verify the same 1024 records against Python,
+including both memory paths, and validate every timed byte count. Both languages
+retain their ordinary release build settings. The machine is still unisolated.
+
+Raw data are retained for the [initial A run](benchmarks/fixed-buffer-inline-2026-10-24.json),
+[A+B run](benchmarks/fixed-buffer-full-inline-2026-10-24.json),
+[21-sample A+B confirmation](benchmarks/fixed-buffer-confirm-2026-10-24.json),
+[B's incremental comparison](benchmarks/fixed-buffer-wrapper-delta-2026-10-24.json),
+and [final A confirmation](benchmarks/fixed-buffer-accessors-final-2026-10-24.json).
+The initial A report was collected after the B source edit, but its executable
+was built before B; the recorded binary hashes distinguish the actual programs.
+To repeat the final workload, save the old executable, apply only candidate A,
+and run:
+
+```text
+python tools/compare_upstream.py --upstream <external-checkout> --baseline-rust <saved-old-driver> --samples 15 --count 10000000 --modes slice grow
+```
+
+The next useful step is a more controlled profiling/measurement environment,
+followed by a change addressing a measured bottleneck. Merely removing calls
+from the assembly did not produce a reliable fixed-buffer improvement here.
+
 ### Latest complete comparison
 
 The integrated implementation at `941f0ec` was measured with a clean working
