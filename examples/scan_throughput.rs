@@ -45,18 +45,19 @@ fn main() {
     for (_, parser) in parsers {
         assert_eq!(black_box(parser(black_box(&data))), expected);
     }
-    let mut times = [[0u128; 5]; 3];
-    for round in 0..5 {
+    let mut times = [[0u128; 3]; 5];
+    for (round, samples) in times.iter_mut().enumerate() {
         // Rotate the first parser so no implementation always runs first.
         for step in 0..3 {
             let index = (round + step) % 3;
             let start = Instant::now();
             let checksum = black_box(parsers[index].1(black_box(&data)));
-            times[index][round] = start.elapsed().as_nanos();
+            samples[index] = start.elapsed().as_nanos();
             assert_eq!(checksum, expected);
         }
     }
-    for ((label, _), mut samples) in parsers.into_iter().zip(times) {
+    for (index, (label, _)) in parsers.into_iter().enumerate() {
+        let mut samples = times.map(|round| round[index]);
         samples.sort_unstable();
         println!(
             "{label:28} {:9.2} ns/token",
