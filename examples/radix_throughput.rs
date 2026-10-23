@@ -2,6 +2,7 @@
 //! MODE is std, write, or print; BASE is 2, 8, or 16. Each run verifies all
 //! inputs, warms up, then emits one JSON sample. Compare saved before/after
 //! executables in alternating order; process startup is outside the timer.
+//! `verify BASE PATH` writes all 1024 checked outputs, each followed by LF.
 use std::{hint::black_box, io::Write, time::Instant};
 
 const VALUES: usize = 1024;
@@ -86,14 +87,24 @@ fn run(values: &[u128], count: usize, mode: &str, base: u8) -> (u128, u64) {
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();
-    assert_eq!(args.len(), 4, "MODE BASE COUNT");
+    assert_eq!(args.len(), 4, "MODE BASE COUNT or verify BASE PATH");
     let mode = &args[1];
     let base: u8 = args[2].parse().unwrap();
     assert!(matches!(base, 2 | 8 | 16), "BASE must be 2, 8, or 16");
-    let count: usize = args[3].parse().unwrap();
-    assert!(count > 0);
     let values = values();
     verify(&values, base);
+    if mode == "verify" {
+        let mut file = std::fs::File::create(&args[3]).unwrap();
+        let mut storage = [0; 130];
+        for value in values {
+            let len = reserved(&mut storage, value, base);
+            file.write_all(&storage[..len]).unwrap();
+            file.write_all(b"\n").unwrap();
+        }
+        return;
+    }
+    let count: usize = args[3].parse().unwrap();
+    assert!(count > 0);
     run(&values, 10_000, mode, base);
     let (elapsed, bytes) = run(&values, count, mode, base);
     println!("{{\"elapsed_ns\":{elapsed},\"units\":{count},\"bytes\":{bytes}}}");
