@@ -7,6 +7,10 @@ The separate [upstream comparison](UPSTREAM_BENCHMARK.md) now measures identical
 formatting and scanning workloads against a pinned C++ fast_io revision built
 with clang, including full byte verification and raw samples. Its first run
 shows a clear remaining gap in unsigned decimal scanning.
+After the measured decimal improvements, a 15-sample comparison put C++/Rust
+at 31.27/39.98 ns per fixed-buffer record, 42.87/39.22 per growing-container
+record, and 13.39/23.80 per scanned token. The original Rust binary in that same
+run scanned at 35.01 ns/token. See the separate report for ranges and limitations.
 
 ## Environment and reproduction
 

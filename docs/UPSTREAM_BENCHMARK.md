@@ -78,7 +78,33 @@ PGO or explicit LTO. Compiler/LLVM versions and optimization pipelines may
 differ: this compares these library/compiler combinations, not language speed.
 Safe checked Rust and the C++ upstream also offer different failure contracts.
 
-## First measured comparison
+## Measured comparisons
+
+### Latest complete comparison
+
+After the retained decimal input/output changes, the same three programs ran
+in 15 rotated samples at Rust commit `7340dab`. The saved original Rust executable
+is from `0c3358d`; the driver workloads are unchanged. Each memory sample formats
+2,000,000 records and each scan sample parses 1,000,000 tokens.
+
+| Workload | C++ median ns/unit | Original Rust | Current Rust | Current Rust range |
+| --- | ---: | ---: | ---: | ---: |
+| Reused fixed buffer | 31.27 | 40.17 | 39.98 | 32.35–57.31 |
+| Reused growing container | 42.87 | 44.21 | 39.22 | 35.47–56.80 |
+| Unsigned decimal scanning | 13.39 | 35.01 | 23.80 | 19.78–35.02 |
+
+The growing-container results are close relative to sample variation. The
+fixed-buffer gap to C++ remains, and the small Rust before/after difference here
+is not conclusive. Scanning improved about 32% versus the original Rust binary
+in this run, while still taking about 1.78 times as long as C++. This supports further work on the
+parser implementation; it does not establish overhead inherent to the Presence
+protocol. C++ ranges were 27.91–47.90, 35.59–57.70 and 11.28–17.71 ns/unit.
+See [all samples and build metadata](benchmarks/upstream-final-2026-10-24.json).
+An earlier complete pass overlapped with a stuck diagnostic process; that pass
+was discarded and repeated after stopping it. The linked report is the rerun.
+Only documentation changes were pending during this measurement.
+
+### Original baseline
 
 On 2026-10-24 (UTC+8), Windows x86-64 / Intel Core i7-11800H, using clang 22.1.6
 and stable Rust 1.99.1 (LLVM 23.1.1), the default nine-sample run at Rust commit
