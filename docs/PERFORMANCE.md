@@ -96,7 +96,7 @@ weaker controls than the current benchmark.
 | --- | ---: | ---: | ---: |
 | `daa6ed9`, initial scanner | 42.41 | 52.67 | 55.73 |
 | `d394988`, streamlined scanning and short-integer parsing | 36.90 | 28.18 | 26.71 |
-| Warm-up + rotated order, timed UTF-8 validation (current recipe) | 24.00 | 24.91 | 27.62 |
+| Warm-up + rotated order, timed UTF-8 validation (before streaming hooks) | 24.00 | 24.91 | 27.62 |
 
 The more controlled run puts this slice scanner close to the standard baseline,
 with no demonstrated speed advantage. The earlier apparent advantage should not
@@ -106,6 +106,15 @@ The parser validates digits and uses checked arithmetic for values that could
 overflow. Short token lengths that prove overflow impossible use a simpler
 arithmetic loop. This dataset does not characterize floats, Unicode processing,
 error-heavy inputs, many tiny source buffers, or real I/O latency.
+
+The current example also compares 8-byte inline input buffers using the decimal
+integer streaming hook against `scan_with(u64::scan_token)`, which copies split
+tokens first. In a paired run, these measured 48.87 and 49.85 ns/token; std,
+slice scanning and normal buffered scanning measured 28.07, 26.39 and 33.53.
+The small difference between the two 8-byte paths does not establish a speedup.
+The streaming hook's demonstrated benefit is avoiding token scratch storage,
+including for very large configured token limits. Both paths check the same
+checksum and retain overflow/length validation.
 
 ## Buffered file output
 

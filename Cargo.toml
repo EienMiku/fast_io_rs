@@ -39,6 +39,10 @@ name = "custom"
 required-features = ["std", "derive"]
 
 [[example]]
+name = "custom_scan"
+required-features = ["std"]
+
+[[example]]
 name = "scan_throughput"
 required-features = ["std"]
 

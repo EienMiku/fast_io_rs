@@ -8,13 +8,19 @@ fn standard(data: &[u8]) -> u64 {
         .split_ascii_whitespace()
         .fold(0u64, |n, s| n.wrapping_add(s.parse::<u64>().unwrap()))
 }
-fn scan<S: fast_io::Source>(source: S) -> u64
+fn scan<S: fast_io::Source, const STREAM: bool>(source: S) -> u64
 where
     S::Error: std::fmt::Debug,
 {
     let mut scan = Scanner::new(source);
     let mut sum = 0u64;
-    while let Some(n) = scan.scan::<u64>().unwrap() {
+    while let Some(n) = if STREAM {
+        scan.scan::<u64>()
+    } else {
+        scan.scan_with(<u64 as fast_io::Scan>::scan_token)
+    }
+    .unwrap()
+    {
         sum = sum.wrapping_add(n);
     }
     sum
@@ -37,18 +43,23 @@ fn main() {
         data.len()
     );
     type Parser = fn(&[u8]) -> u64;
-    let parsers: [(&str, Parser); 4] = [
+    let parsers: [(&str, Parser); 5] = [
         ("std UTF-8 + split + parse", standard),
-        ("Scanner<&[u8]>", |bytes| scan(bytes)),
-        ("Scanner<Input<&[u8]>>", |bytes| scan(Input::new(bytes))),
-        ("Scanner<BufferedInput<_, 8>>", |bytes| {
-            scan(BufferedInput::<_, 8>::new(bytes))
+        ("Scanner<&[u8]>", |bytes| scan::<_, true>(bytes)),
+        ("Scanner<Input<&[u8]>>", |bytes| {
+            scan::<_, true>(Input::new(bytes))
+        }),
+        ("8-byte input, streaming", |bytes| {
+            scan::<_, true>(BufferedInput::<_, 8>::new(bytes))
+        }),
+        ("8-byte input, copied token", |bytes| {
+            scan::<_, false>(BufferedInput::<_, 8>::new(bytes))
         }),
     ];
     for (_, parser) in parsers {
         assert_eq!(black_box(parser(black_box(&data))), expected);
     }
-    let mut times = [[0u128; 4]; 5];
+    let mut times = [[0u128; 5]; 5];
     for (round, samples) in times.iter_mut().enumerate() {
         // Rotate the first parser so no implementation always runs first.
         for step in 0..parsers.len() {

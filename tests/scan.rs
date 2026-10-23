@@ -91,6 +91,50 @@ fn parsing_bounds_and_utf8() {
 }
 
 #[test]
+fn streaming_integer_hooks_match_complete_parsers_at_boundaries() {
+    fn compare<T: Scan + PartialEq + core::fmt::Debug>(tokens: &[&str]) {
+        for &token in tokens {
+            let input = format!(" {token} ");
+            for size in 1..=8 {
+                let mut scanner = Scanner::new(Chunks {
+                    bytes: input.as_bytes(),
+                    size,
+                });
+                let actual = scanner.require::<T>().map_err(|error| match error {
+                    ScanError::Parse(error) => error,
+                    other => panic!("unexpected scan error: {other:?}"),
+                });
+                assert_eq!(
+                    actual,
+                    T::scan_token(token.as_bytes()),
+                    "{token}, chunk {size}"
+                );
+                assert!(scanner.scan::<T>().unwrap().is_none());
+            }
+        }
+    }
+    compare::<u8>(&["0", "+255", "256", "-1", "+", "00042", "12x", "999x"]);
+    compare::<i8>(&["-128", "127", "128", "-129", "--1", "-", "-0", "12x"]);
+    compare::<u128>(&[
+        "340282366920938463463374607431768211455",
+        "340282366920938463463374607431768211456",
+    ]);
+    compare::<i128>(&[
+        "-170141183460469231731687303715884105728",
+        "-170141183460469231731687303715884105729",
+    ]);
+
+    // Presence dispatch avoids instantiating an enormous token scratch array.
+    let mut bytes = [b'0'; 1024];
+    bytes[1022..].copy_from_slice(b"42");
+    let mut scanner = Scanner::<_, { usize::MAX }>::with_capacity(Chunks {
+        bytes: &bytes,
+        size: 3,
+    });
+    assert_eq!(scanner.require::<u8>().unwrap(), 42);
+}
+
+#[test]
 fn incremental_tokens_fold_without_scratch_and_recover_after_errors() {
     for size in 1..=8 {
         let mut scanner = Scanner::<_, 8>::with_capacity(Chunks {

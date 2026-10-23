@@ -1,5 +1,5 @@
 //! Whitespace-delimited parsing with bounded cross-buffer storage.
-use crate::Source;
+use crate::{Presence, Source, presence::missing};
 use core::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -55,6 +55,20 @@ impl<E: core::error::Error + 'static> core::error::Error for ScanError<E> {
 /// Parse one complete token. Implementations cannot retain a borrow of it.
 pub trait Scan: Sized {
     fn scan_token(token: &[u8]) -> Result<Self, ParseError>;
+
+    /// Optionally parse a token across source buffers without joining its bytes.
+    ///
+    /// `Scanner::scan` selects this hook when provided. Implementations must skip
+    /// leading whitespace, honor the scanner's length limit, consume invalid
+    /// tokens, and agree with `scan_token` on values and errors. `scan_fold`
+    /// provides these framing and recovery rules.
+    /// Calling `scanner.scan::<Self>()` here would recurse; use `scan_fold` or
+    /// `scan_with` instead. Defaults require only the complete-token parser.
+    fn scan_stream<S: Source, const N: usize>(
+        _scanner: &mut Scanner<S, N>,
+    ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+        missing()
+    }
 }
 
 /// Integer parsing in an explicit base from 2 through 36.
@@ -67,9 +81,11 @@ pub trait ScanRadix: Sized {
 
 /// ASCII-whitespace token scanner with a configurable maximum token length.
 ///
-/// Contiguous tokens are parsed directly from the source buffer. Only tokens
-/// crossing source buffers are copied into bounded stack storage. Invalid and
-/// oversized tokens are consumed completely, so a subsequent scan can recover.
+/// Types with only `scan_token` parse contiguous tokens directly and copy split
+/// tokens into bounded stack storage. An optional `scan_stream` hook can avoid
+/// that scratch array; primitive decimal integers use incremental accumulation
+/// across buffers while retaining direct parsing for contiguous tokens. Invalid
+/// and oversized tokens are consumed completely, so a subsequent scan can recover.
 /// A source error can occur after consuming part of a token; the caller should
 /// treat that token as lost.
 #[derive(Debug)]
@@ -97,6 +113,9 @@ impl<S: Source, const N: usize> Scanner<S, N> {
 
     #[inline]
     pub fn scan<T: Scan>(&mut self) -> Result<Option<T>, ScanError<S::Error>> {
+        if const { crate::provided(T::scan_stream::<S, N>) } {
+            return T::scan_stream(self).into_value();
+        }
         self.scan_with(T::scan_token)
     }
 
@@ -188,8 +207,25 @@ impl<S: Source, const N: usize> Scanner<S, N> {
     pub fn scan_fold<A>(
         &mut self,
         initial: A,
-        mut fold: impl FnMut(A, &[u8]) -> Result<A, ParseError>,
+        fold: impl FnMut(A, &[u8]) -> Result<A, ParseError>,
     ) -> Result<Option<A>, ScanError<S::Error>> {
+        self.scan_fold_impl(
+            initial,
+            fold,
+            Ok,
+            None::<fn(&[u8]) -> Result<A, ParseError>>,
+        )
+    }
+
+    // A complete-token parser and an incremental parser share one boundary
+    // search, avoiding a second scan of the first chunk on split tokens.
+    fn scan_fold_impl<A, T>(
+        &mut self,
+        initial: A,
+        mut fold: impl FnMut(A, &[u8]) -> Result<A, ParseError>,
+        finish: impl FnOnce(A) -> Result<T, ParseError>,
+        mut whole: Option<impl FnOnce(&[u8]) -> Result<T, ParseError>>,
+    ) -> Result<Option<T>, ScanError<S::Error>> {
         let mut state = Ok(initial);
         let mut used = 0;
         let mut started = false;
@@ -202,7 +238,7 @@ impl<S: Source, const N: usize> Scanner<S, N> {
                 } else if too_long {
                     Err(ScanError::TokenTooLong { limit: N })
                 } else {
-                    state.map(Some).map_err(ScanError::Parse)
+                    state.and_then(finish).map(Some).map_err(ScanError::Parse)
                 };
             }
             let skip = if !started {
@@ -223,6 +259,17 @@ impl<S: Source, const N: usize> Scanner<S, N> {
                 .position(u8::is_ascii_whitespace)
                 .unwrap_or(token.len());
             let complete = end < token.len();
+            if !started && complete {
+                if let Some(parse) = whole.take() {
+                    let parsed = if end > N {
+                        Err(ScanError::TokenTooLong { limit: N })
+                    } else {
+                        parse(&token[..end]).map(Some).map_err(ScanError::Parse)
+                    };
+                    self.source.consume(skip + end);
+                    return parsed;
+                }
+            }
             started = true;
             if !too_long {
                 if end > N - used {
@@ -239,7 +286,7 @@ impl<S: Source, const N: usize> Scanner<S, N> {
                 return if too_long {
                     Err(ScanError::TokenTooLong { limit: N })
                 } else {
-                    state.map(Some).map_err(ScanError::Parse)
+                    state.and_then(finish).map(Some).map_err(ScanError::Parse)
                 };
             }
         }
@@ -278,6 +325,24 @@ fn radix_digit(byte: u8, radix: u32, offset: usize) -> Result<u8, ParseError> {
 macro_rules! unsigned {
     ($($ty:ty),*) => {$(
         impl Scan for $ty {
+            fn scan_stream<S: Source, const N: usize>(
+                scanner: &mut Scanner<S, N>,
+            ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+                scanner.scan_fold_impl((0 as Self, 0usize, false), |(mut value, offset, mut digits), chunk| {
+                    let start = usize::from(offset == 0 && chunk[0] == b'+');
+                    for (index, &byte) in chunk[start..].iter().enumerate() {
+                        let digit = byte.wrapping_sub(b'0');
+                        if digit > 9 { return Err(ParseError::InvalidDigit { offset: offset + start + index }); }
+                        value = value.checked_mul(10)
+                            .and_then(|n| n.checked_add(digit as Self))
+                            .ok_or(ParseError::Overflow)?;
+                        digits = true;
+                    }
+                    Ok((value, offset + chunk.len(), digits))
+                }, |(value, _, digits)| {
+                    if digits { Ok(value) } else { Err(ParseError::Empty) }
+                }, Some(Self::scan_token))
+            }
             #[inline]
             fn scan_token(token: &[u8]) -> Result<Self, ParseError> {
                 let start = usize::from(token.first() == Some(&b'+'));
@@ -323,6 +388,32 @@ macro_rules! unsigned {
 macro_rules! signed {
     ($($ty:ty),*) => {$(
         impl Scan for $ty {
+            fn scan_stream<S: Source, const N: usize>(
+                scanner: &mut Scanner<S, N>,
+            ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+                scanner.scan_fold_impl((0 as Self, false, 0usize, false), |(mut value, mut negative, offset, mut digits), chunk| {
+                    let start = if offset == 0 {
+                        negative = chunk[0] == b'-';
+                        usize::from(negative || chunk[0] == b'+')
+                    } else {
+                        0
+                    };
+                    for (index, &byte) in chunk[start..].iter().enumerate() {
+                        let digit = byte.wrapping_sub(b'0');
+                        if digit > 9 { return Err(ParseError::InvalidDigit { offset: offset + start + index }); }
+                        let multiplied = value.checked_mul(10).ok_or(ParseError::Overflow)?;
+                        value = if negative {
+                            multiplied.checked_sub(digit as Self)
+                        } else {
+                            multiplied.checked_add(digit as Self)
+                        }.ok_or(ParseError::Overflow)?;
+                        digits = true;
+                    }
+                    Ok((value, negative, offset + chunk.len(), digits))
+                }, |(value, _, _, digits)| {
+                    if digits { Ok(value) } else { Err(ParseError::Empty) }
+                }, Some(Self::scan_token))
+            }
             #[inline]
             fn scan_token(token: &[u8]) -> Result<Self, ParseError> {
                 let negative = token.first() == Some(&b'-');

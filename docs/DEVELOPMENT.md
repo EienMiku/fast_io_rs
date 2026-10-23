@@ -27,9 +27,17 @@
   buffering. `Input` preserves std BufReader prefetch before bypassing; `Take`
   and mutable references preserve direct reads. Reported lengths are checked.
   A second optional hook, `buffered_bytes`, exposes cached input without I/O.
-  Exact reads fitting that cache copy and consume directly; other reads use an
+  Exact reads fitting that cache copy and consume directly; other reads use a
   separate refill loop. Slice sources, both buffer wrappers and Take preserve
   this capability. Empty cache and end of input are distinct conditions.
+- `Scan` retains a complete-token parser and adds an optional `scan_stream`
+  Presence hook. Decimal integer implementations parse contiguous tokens
+  directly and fold split tokens without `[u8; N]` scratch. A shared boundary
+  loop serves the generic `scan_fold` and these integer parsers, preserving
+  token limits, byte error offsets and oversized-token recovery. Even a
+  `usize::MAX` token limit is usable for primitive integer scans; methods using
+  complete-token scratch (including `scan_with`/`scan_radix`) still allocate N
+  stack bytes. The tiny-buffer benchmark compares streaming and copied tokens.
 - `Reader` is the minimal raw-device input trait. `BufferedInput<R, N>` adds
   fixed-capacity buffering without std/alloc, exposes `Source`, and bypasses an
   empty buffer for large direct reads. `Io<R>` adapts std readers and retries

@@ -100,7 +100,8 @@ assert_eq!((a, b, c), (123, -45, true));
 
 `Scanner` uses ASCII whitespace and a 256-byte token limit by default.
 `Scanner::<_, N>::with_capacity(source)` changes that limit. Contiguous tokens
-are parsed in place; tokens crossing source buffers use bounded scratch storage.
+are parsed in place. Primitive decimal integers accumulate across buffers
+without token scratch storage; other parsers use bounded scratch for split tokens.
 Oversized and invalid tokens are consumed so later scans can recover.
 Use `scanner.scan_radix::<u64>(16)` for an explicit base from 2 through 36
 (no `0x` prefix), or `scan_with(parser)` to supply a parser with captured context.
@@ -113,6 +114,11 @@ checksums or growable output without a correspondingly large stack buffer. The
 callback returns `Result<Accumulator, ParseError>`; chunk boundaries can split
 UTF-8 characters. Callback errors and overlong tokens are consumed to the next
 token boundary so a later scan can recover.
+
+Custom `Scan` types need only implement `scan_token`. An optional `scan_stream`
+method returns `impl Presence<Result<Option<Self>, ScanError<_>>>` to replace the
+default scan path, for example by calling `scan_fold`. No separate capability
+flag is needed. See [the custom scanner example](examples/custom_scan.rs).
 
 `read_record(&mut source, delimiter, &mut buffer)` reads a bounded record and
 returns its length, excluding the delimiter. `read_line(&mut source, &mut buffer)`
@@ -158,6 +164,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo run --example hello
 cargo run --example scan_sum
 cargo run --example custom --features derive
+cargo run --example custom_scan
 cargo run --release --example throughput -- 500000
 cargo run --release --example scan_throughput -- 200000
 cargo run --release --example file_throughput -- 100000
