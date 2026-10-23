@@ -27,7 +27,14 @@ impl<R: Read> Input<R> {
     }
     /// Reuse an existing BufReader, including its unread prefetched bytes.
     /// No extra buffer is allocated around it.
+    ///
+    /// Panics if its capacity is zero: a zero-capacity BufReader cannot expose
+    /// input through `fill_buf` and would make scanners report premature EOF.
     pub fn from_buffered(reader: BufReader<R>) -> Self {
+        assert!(
+            reader.capacity() > 0,
+            "input buffer capacity must be positive"
+        );
         Self { inner: reader }
     }
     pub fn into_inner(self) -> BufReader<R> {

@@ -174,6 +174,12 @@ fn buffered_input_retries_interrupted_reads() {
     buffered.consume(5);
     let mut scanner = Scanner::new(fast_io::Input::from_buffered(buffered));
     assert_eq!(scanner.require::<u8>().unwrap(), 42);
+    assert!(
+        std::panic::catch_unwind(|| {
+            fast_io::Input::from_buffered(std::io::BufReader::with_capacity(0, b"42".as_slice()))
+        })
+        .is_err()
+    );
 }
 
 #[test]
