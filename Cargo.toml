@@ -70,6 +70,10 @@ required-features = ["std"]
 name = "upstream_compare"
 required-features = ["std"]
 
+[[example]]
+name = "radix_throughput"
+required-features = ["std"]
+
 [lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
 missing_debug_implementations = "warn"
