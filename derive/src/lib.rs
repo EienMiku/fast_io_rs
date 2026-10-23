@@ -4,8 +4,10 @@
 //! use their numeric index. `:x`, `:X`, `:b`, and `:o` select the corresponding
 //! unsigned radix formatter, with `#` enabling its prefix (`0X` for `#X`).
 //! `:?` uses `core::fmt::Debug` and does not require the field to implement
-//! `Encode`. Width, precision, implicit field indices, and other specifiers are
-//! rejected. Radix fields preserve reserved output; Debug fields use streaming.
+//! `Encode`. With the `float` feature, `.N`, `.Ne`, and `.NE` select fixed or
+//! scientific notation with a literal precision in `0..=65535`. Width, dynamic
+//! precision, implicit field indices, and other specifiers are rejected. Radix
+//! and float fields preserve reserved output; Debug fields use streaming.
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
@@ -77,10 +79,41 @@ enum Format {
         uppercase: bool,
         prefix: bool,
     },
+    Float {
+        precision: u16,
+        style: FloatStyle,
+    },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum FloatStyle {
+    Fixed,
+    Scientific,
+    UpperScientific,
 }
 
 impl Format {
     fn parse(specifier: &str, format: &LitStr) -> syn::Result<Self> {
+        if let Some(precision) = specifier.strip_prefix('.') {
+            let (precision, style) = if let Some(digits) = precision.strip_suffix('e') {
+                (digits, FloatStyle::Scientific)
+            } else if let Some(digits) = precision.strip_suffix('E') {
+                (digits, FloatStyle::UpperScientific)
+            } else {
+                (precision, FloatStyle::Fixed)
+            };
+            let error = || {
+                syn::Error::new_spanned(
+                    format,
+                    "float precision must be a decimal integer in 0..=65535, using .N, .Ne, or .NE",
+                )
+            };
+            if precision.is_empty() || !precision.bytes().all(|byte| byte.is_ascii_digit()) {
+                return Err(error());
+            }
+            let precision = precision.parse::<u16>().map_err(|_| error())?;
+            return Ok(Self::Float { precision, style });
+        }
         let (prefix, kind) = specifier
             .strip_prefix('#')
             .map_or((false, specifier), |kind| (true, kind));
@@ -99,7 +132,7 @@ impl Format {
             _ => Err(syn::Error::new_spanned(
                 format,
                 format!(
-                    "unsupported encode format specifier {specifier:?}; expected x, X, b, o (optionally #), or ?"
+                    "unsupported encode format specifier {specifier:?}; expected x, X, b, o (optionally #), ?, .N, .Ne, or .NE"
                 ),
             )),
         }
@@ -113,6 +146,13 @@ impl Format {
         match self {
             Self::Native => reference,
             Self::Debug => quote!(#path::debug(#reference)),
+            Self::Float { precision, style } => match style {
+                FloatStyle::Fixed => quote!(#path::fixed(*(#reference), #precision)),
+                FloatStyle::Scientific => quote!(#path::scientific(*(#reference), #precision)),
+                FloatStyle::UpperScientific => {
+                    quote!(#path::scientific(*(#reference), #precision).uppercase())
+                }
+            },
             Self::Radix {
                 base,
                 uppercase,
@@ -149,6 +189,7 @@ fn add_bounds(generics: &mut syn::Generics, parts: &[Part], fields: &[Field], pa
         let predicate = match format {
             Format::Native => parse_quote!(#ty: #path::Encode),
             Format::Debug => parse_quote!(#ty: ::core::fmt::Debug),
+            Format::Float { .. } => parse_quote!(#ty: #path::Float),
             Format::Radix { .. } => {
                 parse_quote!(#ty: #path::radix::Unsigned + ::core::marker::Copy)
             }
@@ -697,7 +738,7 @@ mod tests {
             unreachable!()
         };
         let fields = collect_fields(&data.fields).unwrap();
-        for format in ["{value:08x}", "{value:#?}", "{value:.2}", "{value:z}"] {
+        for format in ["{value:08x}", "{value:#?}", "{value:z}"] {
             let error = match parse_format(&LitStr::new(format, Span::call_site()), &fields) {
                 Err(error) => error,
                 Ok(_) => panic!("accepted unsupported format {format}"),
@@ -714,6 +755,28 @@ mod tests {
                 Ok(_) => panic!("accepted unknown or skipped field {format}"),
             };
             assert!(error.to_string().contains("unknown or skipped field"));
+        }
+        for format in [
+            "{value:.}",
+            "{value:.e}",
+            "{value:.*}",
+            "{value:.-1}",
+            "{value:.2f}",
+            "{value:.65536E}",
+        ] {
+            let error = match parse_format(&LitStr::new(format, Span::call_site()), &fields) {
+                Err(error) => error,
+                Ok(_) => panic!("accepted invalid precision {format}"),
+            };
+            assert!(error.to_string().contains("float precision must be"));
+        }
+        for format in [
+            "{value:.0}",
+            "{value:.65535}",
+            "{value:.65535e}",
+            "{value:.65535E}",
+        ] {
+            assert!(parse_format(&LitStr::new(format, Span::call_site()), &fields).is_ok());
         }
     }
 }

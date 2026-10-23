@@ -220,3 +220,40 @@ fn explicit_field_formatters_preserve_bounds_reservations_and_batch_order() {
     .unwrap();
     assert_eq!(output.as_bytes(), b"[0xff] <0b101> 0x2a/DebugOnly/0X2A");
 }
+
+#[cfg(feature = "float")]
+#[test]
+fn literal_float_precision_uses_the_existing_reserved_formatters() {
+    use fast_io as renamed;
+    #[derive(renamed::Encode)]
+    #[encode(crate = "renamed")]
+    #[encode("{type:.2}/{type:.3e}/{type:.3E}/{type:.0}")]
+    struct Number<T> {
+        r#type: T,
+    }
+    #[derive(Encode)]
+    enum NumberEvent<T> {
+        #[encode("<{0:.1E}>")]
+        Value(T),
+    }
+    assert!(const { fast_io::provided(Number::<f64>::reserve_size) });
+    assert!(const { fast_io::provided2(Number::<f64>::encode_reserved) });
+    assert!(const { fast_io::provided(NumberEvent::<f32>::reserve_size) });
+    let mut storage = [0; 2048];
+    let mut output = fast_io::SliceSink::new(&mut storage);
+    for value in [-0.0, 9.995, f64::MAX, f64::INFINITY] {
+        let number = Number { r#type: value };
+        let expected = format!("{value:.2}/{value:.3e}/{value:.3E}/{value:.0}");
+        output.clear();
+        fast_io::print!(&mut output; number).unwrap();
+        assert_eq!(output.as_bytes(), expected.as_bytes());
+        output.clear();
+        let mut batch = fast_io::Batch::<_, 8, 2>::new(&mut output);
+        batch.push(&number).unwrap();
+        batch.finish().unwrap();
+        assert_eq!(output.as_bytes(), expected.as_bytes());
+    }
+    output.clear();
+    fast_io::print!(&mut output; NumberEvent::Value(12.5f32)).unwrap();
+    assert_eq!(output.as_bytes(), b"<1.2E1>");
+}
