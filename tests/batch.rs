@@ -80,6 +80,11 @@ fn tiny_batches_preserve_order_across_automatic_drains() {
 
 #[test]
 fn compositions_flatten_into_the_outer_batch() {
+    fn reserved<T: Encode>(_: &T) -> bool {
+        const { fast_io::provided(T::reserve_size) && fast_io::provided2(T::encode_reserved) }
+    }
+    assert!(reserved(&fast_io::concat!(1u32, "x")));
+    assert!(!reserved(&fast_io::concat!(Stream)));
     let text = String::from("nested");
     let words = ["one", "two"];
     let mut sink = Recorder::default();

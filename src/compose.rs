@@ -13,6 +13,12 @@ pub struct Parts<A> {
     pub arguments: A,
 }
 impl<A: Arguments> Encode for Parts<A> {
+    fn reserve_size(&self) -> impl Presence<usize> {
+        crate::arguments::ReservedSize(&self.arguments)
+    }
+    fn encode_reserved(&self, output: &mut [u8]) -> impl Presence<usize> {
+        crate::arguments::ReservedWrite(&self.arguments, output)
+    }
     fn encode<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
         write_arguments(sink, &self.arguments)
     }

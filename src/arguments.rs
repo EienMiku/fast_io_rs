@@ -17,6 +17,7 @@ pub struct Cons<'a, H: ?Sized, T> {
 /// A heterogeneous sequence whose elements can be statically dispatched.
 #[doc(hidden)]
 pub trait Arguments {
+    const RESERVABLE: bool = false;
     /// A checked upper bound when every field supports contiguous output.
     fn reserve_size(&self) -> Option<usize> {
         None
@@ -31,7 +32,26 @@ pub trait Arguments {
         batch: &mut Batch<'_, 'v, S, B, P>,
     ) -> Result<(), S::Error>;
 }
+impl<A: Arguments + ?Sized> Arguments for &A {
+    const RESERVABLE: bool = A::RESERVABLE;
+    fn reserve_size(&self) -> Option<usize> {
+        A::reserve_size(self)
+    }
+    fn encode_reserved(&self, output: &mut [u8]) -> usize {
+        A::encode_reserved(self, output)
+    }
+    fn stream<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
+        A::stream(self, sink)
+    }
+    fn append<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
+        &'v self,
+        batch: &mut Batch<'_, 'v, S, B, P>,
+    ) -> Result<(), S::Error> {
+        A::append(self, batch)
+    }
+}
 impl Arguments for End {
+    const RESERVABLE: bool = true;
     #[inline]
     fn reserve_size(&self) -> Option<usize> {
         Some(0)
@@ -52,6 +72,9 @@ impl Arguments for End {
     }
 }
 impl<H: Encode + ?Sized, T: Arguments> Arguments for Cons<'_, H, T> {
+    const RESERVABLE: bool = (provided(H::borrowed_bytes)
+        || (provided(H::reserve_size) && provided2(H::encode_reserved)))
+        && T::RESERVABLE;
     #[inline]
     fn reserve_size(&self) -> Option<usize> {
         let head = if const { provided(H::borrowed_bytes) } {
@@ -91,6 +114,30 @@ impl<H: Encode + ?Sized, T: Arguments> Arguments for Cons<'_, H, T> {
     ) -> Result<(), S::Error> {
         batch.push(self.head)?;
         self.tail.append(batch)
+    }
+}
+
+/// A capability-carrying size query for a heterogeneous argument list.
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct ReservedSize<A>(pub A);
+impl<A: Arguments> Presence<usize> for ReservedSize<A> {
+    const PRESENT: bool = A::RESERVABLE;
+    fn into_value(self) -> usize {
+        self.0
+            .reserve_size()
+            .expect("argument list has no finite reserved size")
+    }
+}
+
+/// A deferred reserved encoding, carrying the same capability as its fields.
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct ReservedWrite<'a, A>(pub A, pub &'a mut [u8]);
+impl<A: Arguments> Presence<usize> for ReservedWrite<'_, A> {
+    const PRESENT: bool = A::RESERVABLE;
+    fn into_value(self) -> usize {
+        self.0.encode_reserved(self.1)
     }
 }
 
