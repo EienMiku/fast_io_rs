@@ -64,6 +64,8 @@ impl<'s, 'v, S: Sink + ?Sized, const B: usize, const P: usize> Batch<'s, 'v, S, 
             self.used += used;
             self.append_scratch(start);
             Ok(())
+        } else if const { provided2(T::encode_batch::<S, B, P>) } {
+            value.encode_batch(self).into_value()
         } else {
             value.encode(self)
         }

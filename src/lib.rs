@@ -8,6 +8,7 @@ pub mod arguments;
 pub mod batch;
 pub mod buffered;
 mod builtins;
+pub mod compose;
 pub mod fmt_bridge;
 pub mod memory;
 #[cfg(feature = "std")]
@@ -19,6 +20,7 @@ pub mod sink;
 
 pub use batch::Batch;
 pub use buffered::Buffered;
+pub use compose::{Parts, join};
 pub use encode::{Encode, write};
 pub use fmt_bridge::{debug, display, write_fmt};
 pub use memory::{CapacityError, SliceSink};

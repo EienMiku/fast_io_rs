@@ -77,3 +77,18 @@ fn tiny_batches_preserve_order_across_automatic_drains() {
     batch.finish().unwrap();
     assert_eq!(sink, "ab123cdefghijkl🦀".as_bytes());
 }
+
+#[test]
+fn compositions_flatten_into_the_outer_batch() {
+    let text = String::from("nested");
+    let words = ["one", "two"];
+    let mut sink = Recorder::default();
+    fast_io::print!(&mut sink;
+        "[", fast_io::concat!(&text, ":", 7u32), "] ",
+        fast_io::join(&words, "/"), Some("!"), None::<u8>
+    )
+    .unwrap();
+    assert_eq!(sink.bytes, b"[nested:7] one/two!");
+    assert_eq!(sink.calls, 1);
+    assert!(sink.pointers.contains(&(text.as_ptr() as usize)));
+}

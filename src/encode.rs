@@ -30,6 +30,17 @@ pub trait Encode {
     fn encode_reserved(&self, _buffer: &mut [u8]) -> impl Presence<usize> {
         missing()
     }
+
+    /// Optionally append this value's fields directly to a shared batch.
+    ///
+    /// Borrowed fields can remain borrowed across the whole outer print call.
+    /// Use `batch.write_all` for temporary bytes that cannot outlive this call.
+    fn encode_batch<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
+        &'v self,
+        _batch: &mut crate::Batch<'_, 'v, S, B, P>,
+    ) -> impl Presence<Result<(), S::Error>> {
+        missing()
+    }
 }
 
 impl<T: Encode + ?Sized> Encode for &T {
@@ -48,6 +59,14 @@ impl<T: Encode + ?Sized> Encode for &T {
     #[inline]
     fn encode_reserved(&self, buffer: &mut [u8]) -> impl Presence<usize> {
         T::encode_reserved(self, buffer)
+    }
+
+    #[inline]
+    fn encode_batch<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
+        &'v self,
+        batch: &mut crate::Batch<'_, 'v, S, B, P>,
+    ) -> impl Presence<Result<(), S::Error>> {
+        T::encode_batch(self, batch)
     }
 }
 
