@@ -122,6 +122,24 @@ fn fresh(base: &str, used: &mut BTreeSet<String>) -> syn::Ident {
     format_ident!("{name}")
 }
 
+fn identifier_label(ident: &syn::Ident) -> String {
+    let label = ident.to_string();
+    label.strip_prefix("r#").unwrap_or(&label).to_owned()
+}
+
+fn used_names(input: &DeriveInput) -> BTreeSet<String> {
+    input
+        .generics
+        .params
+        .iter()
+        .map(|param| match param {
+            syn::GenericParam::Type(param) => identifier_label(&param.ident),
+            syn::GenericParam::Const(param) => identifier_label(&param.ident),
+            syn::GenericParam::Lifetime(param) => identifier_label(&param.lifetime.ident),
+        })
+        .collect()
+}
+
 fn collect_fields(spec: &Fields) -> syn::Result<Vec<Field>> {
     let mut fields = Vec::new();
     for (index, field) in spec.iter().enumerate() {
@@ -146,7 +164,7 @@ fn collect_fields(spec: &Fields) -> syn::Result<Vec<Field>> {
             label: field
                 .ident
                 .as_ref()
-                .map(ToString::to_string)
+                .map(identifier_label)
                 .unwrap_or_else(|| index.to_string()),
             skip,
         });
@@ -185,7 +203,7 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     } else if let Some(format) = cfg.format {
         parse_format(&format, &fields)?
     } else {
-        let mut parts = vec![Part::Text(name.to_string())];
+        let mut parts = vec![Part::Text(identifier_label(name))];
         let (open, close) = match data.fields {
             Fields::Named(_) => (" { ", " }"),
             Fields::Unnamed(_) => ("(", ")"),
@@ -221,21 +239,14 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             .push(parse_quote!(#ty: #path::Encode));
     }
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
-    let mut used: BTreeSet<_> = input
-        .generics
-        .params
-        .iter()
-        .map(|p| match p {
-            syn::GenericParam::Type(p) => p.ident.to_string(),
-            syn::GenericParam::Const(p) => p.ident.to_string(),
-            syn::GenericParam::Lifetime(p) => p.lifetime.ident.to_string(),
-        })
-        .collect();
+    let mut used = used_names(&input);
     let sink = fresh("__FastIoSink", &mut used);
     let bytes = fresh("__FAST_IO_BYTES", &mut used);
     let pieces = fresh("__FAST_IO_PIECES", &mut used);
     let lifetime_name = fresh("__fast_io_value", &mut used);
     let lifetime = syn::Lifetime::new(&format!("'{lifetime_name}"), Span::call_site());
+    let out_ident = fresh("output", &mut used);
+    let batch_ident = fresh("batch", &mut used);
 
     let expressions: Vec<_> = parts
         .iter()
@@ -255,17 +266,17 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
         Part::Text(text) if text.is_empty() => None,
         Part::Text(text) => {
             let literal = syn::LitByteStr::new(text.as_bytes(), Span::call_site());
-            Some(quote!(#path::Sink::write_all(output, #literal)?;))
+            Some(quote!(#path::Sink::write_all(#out_ident, #literal)?;))
         }
         Part::Field(index) => {
             let member = &fields[*index].member;
-            Some(quote!(#path::write(output, &self.#member)?;))
+            Some(quote!(#path::write(#out_ident, &self.#member)?;))
         }
     });
     let borrowed = if cfg.transparent {
         let member = &fields[active[0]].member;
         quote! {
-            fn borrowed_bytes(&self) -> impl #path::Presence<&[u8]> {
+            fn borrowed_bytes(&self) -> impl #path::Presence<&[::core::primitive::u8]> {
                 #path::Encode::borrowed_bytes(&self.#member)
             }
         }
@@ -275,23 +286,23 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
 
     Ok(quote! {
         impl #impl_generics #path::Encode for #name #type_generics #where_clause {
-            fn encode<#sink: #path::Sink + ?Sized>(&self, output: &mut #sink)
+            fn encode<#sink: #path::Sink + ?::core::marker::Sized>(&self, #out_ident: &mut #sink)
                 -> ::core::result::Result<(), #sink::Error>
             {
                 #(#streaming)*
                 ::core::result::Result::Ok(())
             }
             #borrowed
-            fn reserve_size(&self) -> impl #path::Presence<usize> {
+            fn reserve_size(&self) -> impl #path::Presence<::core::primitive::usize> {
                 #path::arguments::ReservedSize(#path::__fast_io_args!(#(#expressions),*))
             }
-            fn encode_reserved(&self, output: &mut [u8]) -> impl #path::Presence<usize> {
-                #path::arguments::ReservedWrite(#path::__fast_io_args!(#(#expressions),*), output)
+            fn encode_reserved(&self, #out_ident: &mut [::core::primitive::u8]) -> impl #path::Presence<::core::primitive::usize> {
+                #path::arguments::ReservedWrite(#path::__fast_io_args!(#(#expressions),*), #out_ident)
             }
-            fn encode_batch<#lifetime, #sink: #path::Sink + ?Sized, const #bytes: usize, const #pieces: usize>(
-                &#lifetime self, batch: &mut #path::Batch<'_, #lifetime, #sink, #bytes, #pieces>
+            fn encode_batch<#lifetime, #sink: #path::Sink + ?::core::marker::Sized, const #bytes: ::core::primitive::usize, const #pieces: ::core::primitive::usize>(
+                &#lifetime self, #batch_ident: &mut #path::Batch<'_, #lifetime, #sink, #bytes, #pieces>
             ) -> impl #path::Presence<::core::result::Result<(), #sink::Error>> {
-                #(batch.push(&#expressions)?;)*
+                #(#batch_ident.push(&#expressions)?;)*
                 ::core::result::Result::Ok(())
             }
         }
@@ -322,6 +333,9 @@ fn expand_enum(
     let mut batch_arms = Vec::new();
     let mut size_arms = Vec::new();
     let mut reserved_arms = Vec::new();
+    let mut used = used_names(input);
+    let out_ident = fresh("output", &mut used);
+    let batch_ident = fresh("batch", &mut used);
     for (variant_index, variant) in data.variants.iter().enumerate() {
         let variant_name = &variant.ident;
         let variant_cfg = config(&variant.attrs)?;
@@ -349,7 +363,11 @@ fn expand_enum(
         } else if let Some(format) = variant_cfg.format {
             parse_format(&format, &fields)?
         } else {
-            let mut parts = vec![Part::Text(format!("{name}::{variant_name}"))];
+            let mut parts = vec![Part::Text(format!(
+                "{}::{}",
+                identifier_label(name),
+                identifier_label(variant_name)
+            ))];
             let (open, close) = match variant.fields {
                 Fields::Named(_) => (" { ", " }"),
                 Fields::Unnamed(_) => ("(", ")"),
@@ -387,7 +405,7 @@ fn expand_enum(
             .enumerate()
             .map(|(i, _)| {
                 if used_fields.contains(&i) {
-                    let id = format_ident!("__fast_io_field_{i}");
+                    let id = fresh(&format!("__fast_io_field_{i}"), &mut used);
                     quote!(#id)
                 } else {
                     quote!(_)
@@ -406,22 +424,22 @@ fn expand_enum(
             Part::Text(text) if text.is_empty() => None,
             Part::Text(text) => {
                 let literal = syn::LitByteStr::new(text.as_bytes(), Span::call_site());
-                Some(quote!(#path::Sink::write_all(output, #literal)?;))
+                Some(quote!(#path::Sink::write_all(#out_ident, #literal)?;))
             }
             Part::Field(index) => {
                 let binding = &bindings[*index];
-                Some(quote!(#path::write(output, #binding)?;))
+                Some(quote!(#path::write(#out_ident, #binding)?;))
             }
         });
         let batch = parts.iter().filter_map(|part| match part {
             Part::Text(text) if text.is_empty() => None,
             Part::Text(text) => {
                 let literal = LitStr::new(text, Span::call_site());
-                Some(quote!(batch.push(#literal)?;))
+                Some(quote!(#batch_ident.push(#literal)?;))
             }
             Part::Field(index) => {
                 let binding = &bindings[*index];
-                Some(quote!(batch.push(#binding)?;))
+                Some(quote!(#batch_ident.push(#binding)?;))
             }
         });
         // Construct direct field borrows. Taking &binding would borrow a local
@@ -447,7 +465,7 @@ fn expand_enum(
         let reserved = reserved_choice(
             variant_index,
             data.variants.len(),
-            quote!(#path::arguments::ReservedWrite(#arguments, output)),
+            quote!(#path::arguments::ReservedWrite(#arguments, #out_ident)),
             path,
         );
         stream_arms.push(quote!(#pattern => { #(#stream)* ::core::result::Result::Ok(()) }));
@@ -455,16 +473,6 @@ fn expand_enum(
         size_arms.push(quote!(#pattern => #size));
         reserved_arms.push(quote!(#pattern => #reserved));
     }
-    let mut used: BTreeSet<_> = input
-        .generics
-        .params
-        .iter()
-        .map(|p| match p {
-            syn::GenericParam::Type(p) => p.ident.to_string(),
-            syn::GenericParam::Const(p) => p.ident.to_string(),
-            syn::GenericParam::Lifetime(p) => p.lifetime.ident.to_string(),
-        })
-        .collect();
     let sink = fresh("__FastIoSink", &mut used);
     let bytes = fresh("__FAST_IO_BYTES", &mut used);
     let pieces = fresh("__FAST_IO_PIECES", &mut used);
@@ -473,19 +481,19 @@ fn expand_enum(
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
     Ok(quote! {
         impl #impl_generics #path::Encode for #name #type_generics #where_clause {
-            fn encode<#sink: #path::Sink + ?Sized>(&self, output: &mut #sink)
+            fn encode<#sink: #path::Sink + ?::core::marker::Sized>(&self, #out_ident: &mut #sink)
                 -> ::core::result::Result<(), #sink::Error>
             {
                 match self { #(#stream_arms),* }
             }
-            fn reserve_size(&self) -> impl #path::Presence<usize> {
+            fn reserve_size(&self) -> impl #path::Presence<::core::primitive::usize> {
                 match self { #(#size_arms),* }
             }
-            fn encode_reserved(&self, output: &mut [u8]) -> impl #path::Presence<usize> {
+            fn encode_reserved(&self, #out_ident: &mut [::core::primitive::u8]) -> impl #path::Presence<::core::primitive::usize> {
                 match self { #(#reserved_arms),* }
             }
-            fn encode_batch<#lifetime, #sink: #path::Sink + ?Sized, const #bytes: usize, const #pieces: usize>(
-                &#lifetime self, batch: &mut #path::Batch<'_, #lifetime, #sink, #bytes, #pieces>
+            fn encode_batch<#lifetime, #sink: #path::Sink + ?::core::marker::Sized, const #bytes: ::core::primitive::usize, const #pieces: ::core::primitive::usize>(
+                &#lifetime self, #batch_ident: &mut #path::Batch<'_, #lifetime, #sink, #bytes, #pieces>
             ) -> impl #path::Presence<::core::result::Result<(), #sink::Error>> {
                 match self { #(#batch_arms),* }
             }

@@ -74,6 +74,7 @@ reserved output exactly when all formatted fields support it. It supports named
 and tuple structs, `{field}` / `{0}` placeholders, `{{` / `}}` escapes,
 `#[encode(skip)]` fields and `#[encode(transparent)]` single-field wrappers.
 Use `#[encode(crate = "renamed_dependency")]` if the crate has been renamed.
+Raw identifiers use their plain field name in placeholders (`r#type` becomes `{type}`).
 Enums support per-variant format/transparent attributes. They advertise reserved
 output when all their variants' formatted fields support it; otherwise streaming
 and shared-batch output remain available. Empty enums, unions and format

@@ -28,6 +28,12 @@ impl Encode for Streaming {
 struct Wrapped(Streaming);
 
 #[test]
+// Deliberately awkward names exercise the generated code's hygiene.
+#[allow(
+    non_upper_case_globals,
+    non_camel_case_types,
+    clippy::builtin_type_shadow
+)]
 fn derived_fields_formats_generics_and_conditional_capabilities() {
     let mut storage = [0; 256];
     let mut output = fast_io::SliceSink::new(&mut storage);
@@ -44,6 +50,32 @@ fn derived_fields_formats_generics_and_conditional_capabilities() {
     assert!(!const { fast_io::provided(Wrapped::reserve_size) });
     assert!(const { fast_io::provided(Text::borrowed_bytes) });
     assert_eq!(Text("a").borrowed_bytes().into_value(), b"a");
+
+    #[derive(Encode)]
+    #[encode("{type}/{bytes}")]
+    struct Raw<const output: usize, const batch: usize> {
+        r#type: u8,
+        bytes: [u8; output],
+        #[encode(skip)]
+        _unused: [u8; batch],
+    }
+    #[derive(Encode)]
+    enum Collision<const output: usize, const batch: usize, const __fast_io_field_0: usize> {
+        Value([u8; output], [u8; batch], [u8; __fast_io_field_0]),
+    }
+    output.clear();
+    fast_io::print!(&mut output;
+        Raw { r#type: 3, bytes: *b"ab", _unused: [] }, " ",
+        Collision::Value(*b"a", *b"b", *b"c")
+    )
+    .unwrap();
+    assert_eq!(output.as_bytes(), b"3/ab Collision::Value(a, b, c)");
+    #[derive(Encode)]
+    #[encode("{0}/{1}/{2}")]
+    struct TypeNames<usize, u8, Sized>(usize, u8, Sized);
+    output.clear();
+    fast_io::print!(&mut output; TypeNames(1u8, 2u8, "ok")).unwrap();
+    assert_eq!(output.as_bytes(), b"1/2/ok");
 }
 
 #[derive(Encode)]
