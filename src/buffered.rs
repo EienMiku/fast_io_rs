@@ -56,7 +56,29 @@ impl<S: Sink, const N: usize> Buffered<S, N> {
 }
 impl<S: Sink, const N: usize> Sink for Buffered<S, N> {
     type Error = S::Error;
+    #[inline]
+    fn write_arguments<A: crate::arguments::Arguments>(
+        &mut self,
+        arguments: &A,
+    ) -> impl Presence<Result<(), Self::Error>> {
+        if let Some(size) = arguments.reserve_size().filter(|&size| size <= N) {
+            if size > N - self.len {
+                self.drain()?;
+            }
+            let used = arguments.encode_reserved(&mut self.buffer[self.len..self.len + size]);
+            assert!(
+                used <= size,
+                "argument sequence exceeded its reserved output bound"
+            );
+            self.len += used;
+            return Ok(());
+        }
+        arguments.stream(self)
+    }
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
+        if bytes.is_empty() {
+            return Ok(());
+        }
         if bytes.len() > N - self.len {
             self.drain()?;
         }

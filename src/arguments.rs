@@ -1,5 +1,5 @@
 //! Heterogeneous arguments for the print macros.
-use crate::{Batch, Encode, Sink};
+use crate::{Batch, Encode, Presence, Sink, provided, provided2};
 
 /// An empty argument sequence, used by the exported macros.
 #[doc(hidden)]
@@ -17,6 +17,14 @@ pub struct Cons<'a, H: ?Sized, T> {
 /// A heterogeneous sequence whose elements can be statically dispatched.
 #[doc(hidden)]
 pub trait Arguments {
+    /// A checked upper bound when every field supports contiguous output.
+    fn reserve_size(&self) -> Option<usize> {
+        None
+    }
+    /// Encode into a buffer of at least reserve_size bytes.
+    fn encode_reserved(&self, _output: &mut [u8]) -> usize {
+        panic!("argument sequence has no reserved encoding")
+    }
     fn stream<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error>;
     fn append<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
         &'v self,
@@ -24,6 +32,14 @@ pub trait Arguments {
     ) -> Result<(), S::Error>;
 }
 impl Arguments for End {
+    #[inline]
+    fn reserve_size(&self) -> Option<usize> {
+        Some(0)
+    }
+    #[inline]
+    fn encode_reserved(&self, _output: &mut [u8]) -> usize {
+        0
+    }
     #[inline]
     fn stream<S: Sink + ?Sized>(&self, _sink: &mut S) -> Result<(), S::Error> {
         Ok(())
@@ -36,6 +52,33 @@ impl Arguments for End {
     }
 }
 impl<H: Encode + ?Sized, T: Arguments> Arguments for Cons<'_, H, T> {
+    #[inline]
+    fn reserve_size(&self) -> Option<usize> {
+        let head = if const { provided(H::borrowed_bytes) } {
+            self.head.borrowed_bytes().into_value().len()
+        } else if const { provided(H::reserve_size) && provided2(H::encode_reserved) } {
+            self.head.reserve_size().into_value()
+        } else {
+            return None;
+        };
+        head.checked_add(self.tail.reserve_size()?)
+    }
+    #[inline]
+    fn encode_reserved(&self, output: &mut [u8]) -> usize {
+        let used = if const { provided(H::borrowed_bytes) } {
+            let bytes = self.head.borrowed_bytes().into_value();
+            output[..bytes.len()].copy_from_slice(bytes);
+            bytes.len()
+        } else if const { provided(H::reserve_size) && provided2(H::encode_reserved) } {
+            let bound = self.head.reserve_size().into_value();
+            let used = self.head.encode_reserved(&mut output[..bound]).into_value();
+            assert!(used <= bound, "encoder exceeded its reserved output bound");
+            used
+        } else {
+            panic!("argument has no reserved encoding")
+        };
+        used + self.tail.encode_reserved(&mut output[used..])
+    }
     #[inline]
     fn stream<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
         crate::write(sink, self.head)?;

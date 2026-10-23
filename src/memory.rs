@@ -56,6 +56,18 @@ impl Sink for SliceSink<'_> {
         &mut self,
         arguments: &A,
     ) -> impl Presence<Result<(), Self::Error>> {
+        if let Some(size) = arguments
+            .reserve_size()
+            .filter(|&size| size <= self.remaining())
+        {
+            let used = arguments.encode_reserved(&mut self.buffer[self.len..self.len + size]);
+            assert!(
+                used <= size,
+                "argument sequence exceeded its reserved output bound"
+            );
+            self.len += used;
+            return Ok(());
+        }
         arguments.stream(self)
     }
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
@@ -95,6 +107,24 @@ impl Sink for alloc::vec::Vec<u8> {
         &mut self,
         arguments: &A,
     ) -> impl Presence<Result<(), Self::Error>> {
+        if let Some(size) = arguments.reserve_size() {
+            let start = self.len();
+            let end = start
+                .checked_add(size)
+                .expect("combined output length overflow");
+            let mut tail = VecTail {
+                bytes: self,
+                keep: start,
+            };
+            tail.bytes.resize(end, 0);
+            let used = arguments.encode_reserved(&mut tail.bytes[start..]);
+            assert!(
+                used <= size,
+                "argument sequence exceeded its reserved output bound"
+            );
+            tail.keep = start + used;
+            return Ok(());
+        }
         arguments.stream(self)
     }
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
@@ -111,5 +141,18 @@ impl Sink for alloc::vec::Vec<u8> {
             self.extend_from_slice(bytes);
         }
         Ok(())
+    }
+}
+
+// Restore the original length if a custom formatter panics mid-reservation.
+#[cfg(feature = "alloc")]
+struct VecTail<'a> {
+    bytes: &'a mut alloc::vec::Vec<u8>,
+    keep: usize,
+}
+#[cfg(feature = "alloc")]
+impl Drop for VecTail<'_> {
+    fn drop(&mut self) {
+        self.bytes.truncate(self.keep);
     }
 }

@@ -126,3 +126,34 @@ fn buffered_failure_does_not_replay_a_partial_prefix() {
     }
     assert_eq!(inner.calls, 1);
 }
+
+#[test]
+fn reserved_memory_output_handles_small_buffers_and_unwinding() {
+    use fast_io::Encode;
+    let mut storage = [0; 1];
+    let mut small = SliceSink::new(&mut storage);
+    fast_io::print!(&mut small; 7u64).unwrap();
+    assert_eq!(small.as_bytes(), b"7");
+
+    struct Panic;
+    impl Encode for Panic {
+        fn encode<S: Sink + ?Sized>(&self, _: &mut S) -> Result<(), S::Error> {
+            panic!("format failure")
+        }
+        fn reserve_size(&self) -> impl Presence<usize> {
+            1
+        }
+        fn encode_reserved(&self, out: &mut [u8]) -> impl Presence<usize> {
+            out[0] = b'x';
+            panic!("format failure");
+            #[allow(unreachable_code)]
+            1usize
+        }
+    }
+    let mut bytes = b"prefix".to_vec();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        fast_io::print!(&mut bytes; "uncommitted", Panic).unwrap();
+    }));
+    assert!(result.is_err());
+    assert_eq!(bytes, b"prefix");
+}
