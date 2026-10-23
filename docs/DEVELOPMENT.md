@@ -13,6 +13,9 @@
 - `Arguments` is a statically typed list used by print macros. Its constant
   `RESERVABLE` propagates field capabilities through composite formatters,
   including joins and optional values.
+  Its recursive reserved-output step and thin adapters inline deliberately:
+  leaving these as separate functions materialized field-pointer lists and
+  measurably slowed derived structs/enums in the local benchmark.
 - `Source` exposes a buffered byte slice. `Scanner` parses contiguous tokens in
   place and joins split tokens into bounded scratch storage.
 

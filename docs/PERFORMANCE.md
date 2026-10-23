@@ -61,6 +61,21 @@ Initial measurement with the `70f8938` implementation:
 This exposes a measurable cost in these derived paths, particularly for enums.
 Compile-time capability selection alone does not prove identical generated code.
 
+Inlining the thin reserved-output adapters and the recursive argument-list step
+removed separately emitted argument-list encoders from this benchmark's release
+LLVM IR. Before that change, these encoders required a stack-resident list of
+field pointers. A subsequent paired run measured:
+
+| Dataset | std ns/record | direct arguments ns/record | derived Encode ns/record |
+| --- | ---: | ---: | ---: |
+| Struct | 82.11 | 41.70 | 38.34 |
+| Mixed enum | 67.90 | 33.92 | 32.81 |
+
+For these records, derived formatting now costs about the same as direct
+arguments. The small differences within a row are not evidence that derive is
+inherently faster. Inlining can also increase code size; larger layouts and
+different compiler targets need separate measurement.
+
 ## Integer scanning
 
 The workload contains 200,000 deterministic decimal `u64` tokens (4,079,493 bytes).

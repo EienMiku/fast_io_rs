@@ -34,15 +34,19 @@ pub trait Arguments {
 }
 impl<A: Arguments + ?Sized> Arguments for &A {
     const RESERVABLE: bool = A::RESERVABLE;
+    #[inline]
     fn reserve_size(&self) -> Option<usize> {
         A::reserve_size(self)
     }
+    #[inline]
     fn encode_reserved(&self, output: &mut [u8]) -> usize {
         A::encode_reserved(self, output)
     }
+    #[inline]
     fn stream<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
         A::stream(self, sink)
     }
+    #[inline]
     fn append<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
         &'v self,
         batch: &mut Batch<'_, 'v, S, B, P>,
@@ -86,7 +90,9 @@ impl<H: Encode + ?Sized, T: Arguments> Arguments for Cons<'_, H, T> {
         };
         head.checked_add(self.tail.reserve_size()?)
     }
-    #[inline]
+    // Flatten the type-level list at the call site instead of passing a runtime
+    // list of field pointers to a separate encoder.
+    #[inline(always)]
     fn encode_reserved(&self, output: &mut [u8]) -> usize {
         let used = if const { provided(H::borrowed_bytes) } {
             let bytes = self.head.borrowed_bytes().into_value();
@@ -123,6 +129,7 @@ impl<H: Encode + ?Sized, T: Arguments> Arguments for Cons<'_, H, T> {
 pub struct ReservedSize<A>(pub A);
 impl<A: Arguments> Presence<usize> for ReservedSize<A> {
     const PRESENT: bool = A::RESERVABLE;
+    #[inline]
     fn into_value(self) -> usize {
         self.0
             .reserve_size()
@@ -136,6 +143,9 @@ impl<A: Arguments> Presence<usize> for ReservedSize<A> {
 pub struct ReservedWrite<'a, A>(pub A, pub &'a mut [u8]);
 impl<A: Arguments> Presence<usize> for ReservedWrite<'_, A> {
     const PRESENT: bool = A::RESERVABLE;
+    // This only unwraps a deferred call. Keeping the wrapper as a function can
+    // materialize the entire heterogeneous argument list on the stack.
+    #[inline(always)]
     fn into_value(self) -> usize {
         self.0.encode_reserved(self.1)
     }
@@ -150,6 +160,7 @@ pub enum ReservedChoice<L, R> {
 }
 impl<L: Presence<usize>, R: Presence<usize>> Presence<usize> for ReservedChoice<L, R> {
     const PRESENT: bool = L::PRESENT && R::PRESENT;
+    #[inline(always)]
     fn into_value(self) -> usize {
         match self {
             Self::Left(value) => value.into_value(),
