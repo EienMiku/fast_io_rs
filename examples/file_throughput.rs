@@ -44,11 +44,11 @@ impl Drop for ScratchFile {
     }
 }
 
-fn measure(file: &mut File, count: u64, fast: bool) -> io::Result<Duration> {
+fn measure(file: &mut File, count: u64, fast: bool, name: &str) -> io::Result<Duration> {
     file.rewind()?;
     file.set_len(0)?;
     let start = Instant::now();
-    let name = black_box("example-user");
+    let name = black_box(name);
     if fast {
         let mut output = Buffered::<_, 8192>::new(Io::new(file));
         for i in 0..count {
@@ -92,22 +92,30 @@ fn main() -> io::Result<()> {
         .map(|n| n.parse().expect("record count"))
         .unwrap_or(100_000u64);
     assert!(count > 0);
+    let name = std::env::args().nth(2).map_or_else(
+        || String::from("example-user"),
+        |length| "x".repeat(length.parse().expect("payload byte count")),
+    );
     let mut standard = ScratchFile::new("std")?;
     let mut fast = ScratchFile::new("fast")?;
-    measure(standard.file(), 5000, false)?;
-    measure(fast.file(), 5000, true)?;
+    let warmup = (1_000_000 / name.len().saturating_add(64)).clamp(1, 5000) as u64;
+    measure(standard.file(), warmup, false, &name)?;
+    measure(fast.file(), warmup, true, &name)?;
     let mut times = [[Duration::ZERO; 2]; 3];
     for (round, samples) in times.iter_mut().enumerate() {
         if round % 2 == 0 {
-            samples[0] = measure(standard.file(), count, false)?;
-            samples[1] = measure(fast.file(), count, true)?;
+            samples[0] = measure(standard.file(), count, false, &name)?;
+            samples[1] = measure(fast.file(), count, true, &name)?;
         } else {
-            samples[1] = measure(fast.file(), count, true)?;
-            samples[0] = measure(standard.file(), count, false)?;
+            samples[1] = measure(fast.file(), count, true, &name)?;
+            samples[0] = measure(standard.file(), count, false, &name)?;
         }
     }
     let bytes = compare(standard.file(), fast.file())?;
-    println!("{count} records, {bytes} identical output bytes, 8192-byte buffers");
+    println!(
+        "{count} records, {bytes} identical output bytes, {}-byte payloads, 8192-byte buffers",
+        name.len()
+    );
     println!("OS cache included; flush included; sync_all not requested");
     for (index, label) in ["std BufWriter + writeln!", "fast_io Buffered + println!"]
         .into_iter()

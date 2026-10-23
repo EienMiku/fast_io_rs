@@ -17,6 +17,7 @@ or a prediction of uncached disk, terminal, or network throughput.
 cargo run --release --example throughput -- 500000
 cargo run --release --example scan_throughput -- 200000
 cargo run --release --example file_throughput -- 100000
+cargo run --release --example file_throughput -- 1000 16384
 ```
 
 ## Formatting
@@ -82,6 +83,8 @@ For 100,000 records / 7,977,658 matching bytes in this environment:
 
 The result supports the contiguous-buffer formatting path for this workload.
 Different filesystems, devices, buffer sizes and scheduling can change it.
+The optional second argument replaces the short name with a payload of that
+many bytes, exercising records larger than the persistent buffer.
 
 ## What remains to measure
 
