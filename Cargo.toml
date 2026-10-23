@@ -66,6 +66,10 @@ required-features = ["std"]
 name = "pipe_throughput"
 required-features = ["std"]
 
+[[example]]
+name = "upstream_compare"
+required-features = ["std"]
+
 [lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
 missing_debug_implementations = "warn"
