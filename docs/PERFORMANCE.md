@@ -5,12 +5,12 @@ or a prediction of uncached disk, terminal, or network throughput.
 
 The separate [upstream comparison](UPSTREAM_BENCHMARK.md) now measures identical
 formatting and scanning workloads against a pinned C++ fast_io revision built
-with clang, including full byte verification and raw samples. Its first run
-shows a clear remaining gap in unsigned decimal scanning.
-After the measured decimal improvements, a 15-sample comparison put C++/Rust
-at 31.27/39.98 ns per fixed-buffer record, 42.87/39.22 per growing-container
-record, and 13.39/23.80 per scanned token. The original Rust binary in that same
-run scanned at 35.01 ns/token. See the separate report for ranges and limitations.
+with clang, including full byte verification and raw samples. The integrated
+15-sample comparison at `941f0ec` put C++/Rust at 30.54/34.93 ns per fixed-buffer
+record, 44.00/37.36 per growing-container record, 13.63/15.89 per full-width u64
+token and 13.91/12.84 per full-width i64 token. The eight workloads, including
+short and medium-range inputs, have Rust/C++ median ratios from 0.85 to 1.22.
+See the separate report for ranges, earlier baselines and limitations.
 
 ## Environment and reproduction
 
@@ -35,6 +35,9 @@ cargo run --release --example read_throughput -- 100000 32
 cargo run --release --example read_throughput -- 1000 16384
 cargo run --release --example pipe_throughput -- 10000 32
 cargo run --release --example pipe_throughput -- 1000 16384
+cargo run --release --example radix_throughput -- write 16 200000
+cargo run --release --example radix_throughput -- print 16 200000
+cargo run --release --example radix_throughput -- std 16 200000
 ```
 
 ## Formatting
@@ -55,6 +58,30 @@ The device's optional `write_arguments` hook now chooses a contiguous reservatio
 when every value supplies a usable bound. A scatter-capable device still receives
 borrowed fragments and generated scratch data. Formatting performance depends on
 the values, buffer size, device and available hooks.
+
+## Power-of-two radix output
+
+The radix formatter previously divided a u128 by a runtime base for each digit,
+including binary, octal and hexadecimal output. At `c1c93ac`, power-of-two bases
+2/4/8/16/32 instead use a mask and bit shifts; other bases retain division.
+
+The `radix_throughput` example uses 1024 prebuilt u128 values, including zero,
+small values and u128::MAX. Every process verifies both fast_io paths against
+std, warms up 10,000 values, then times only formatting and observing the output
+bytes. Fifteen rounds rotate the saved before/after executables, both fast_io
+entry points and std control paths. Each sample formats 200,000 values.
+
+| Base | Direct write before/after ns/value | Reserved print before/after | std control |
+| --- | ---: | ---: | ---: |
+| 2 | 902.44 / 147.17 | 890.60 / 145.29 | 126.81 |
+| 8 | 310.59 / 57.66 | 305.06 / 55.39 | 55.17 |
+| 16 | 222.56 / 45.86 | 221.39 / 44.69 | 45.71 |
+
+The reduction is specific to these power-of-two u128 workloads; it does not
+demonstrate an improvement for decimal or arbitrary runtime bases. Std control
+medians are similar across both executables. This table is a Rust before/after
+comparison, not a C++ parity result. The [raw samples and binary hashes](benchmarks/radix-bit-groups-2026-10-24.json)
+record the candidate worktree and the baseline benchmark commit `53aaa19`.
 
 ## Derived records
 

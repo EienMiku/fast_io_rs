@@ -1,0 +1,1436 @@
+{
+  "started_at_utc": "2026-10-23T16:38:39.519777+00:00",
+  "finished_at_utc": "2026-10-23T16:38:54.356803+00:00",
+  "platform": "Windows-10-10.0.29683-SP0",
+  "processor": "Intel64 Family 6 Model 141 Stepping 1, GenuineIntel",
+  "rust_revision": "53aaa19f160e92d80c547ea8bfea97f77484d2b0",
+  "worktree_status": "M README.md\n M docs/DEVELOPMENT.md\n M src/radix.rs\n M tests/formatters.rs\n?? docs/benchmarks/upstream-block8-2026-10-24.json\n?? docs/benchmarks/upstream-block8-short-2026-10-24.json\n?? docs/benchmarks/upstream-integrated-2026-10-24.json",
+  "rust_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-pc-windows-msvc\nrelease: 1.99.1\nLLVM version: 23.1.1",
+  "count": 200000,
+  "rounds": 15,
+  "binary_hashes": {
+    "before": {
+      "path": "D:\\Coding\\fast_io_rs\\target\\agent-radix-before.exe",
+      "sha256": "6291ca41c38d234cfcd1ebfae83ef85fbd786c3c4db073a381f5d0a064e6cb5c"
+    },
+    "after": {
+      "path": "D:\\Coding\\fast_io_rs\\target\\agent-output\\release\\examples\\radix_throughput.exe",
+      "sha256": "218af2afe4c40f97e4dca83a5fe3dd2fb240b188c31c05b10403fd7f92c331b2"
+    }
+  },
+  "command_schema": [
+    "<binary>",
+    "<std|write|print>",
+    "<2|8|16>",
+    "200000"
+  ],
+  "sampling": "Rotate first case each round; each run independently verifies 1024 values against std before warming 10000 values; input creation, validation, startup, warmup excluded from timing. No CPU pinning. Standard control measured for both binaries.",
+  "samples": {
+    "before/std/2": [
+      {
+        "elapsed_ns": 25186900,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 23895800,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 24657200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 26655000,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 25072100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 24650400,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 25528200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 23768700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 25628400,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 23570300,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28853100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 25811000,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 26458400,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 27419600,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 24582300,
+        "units": 200000,
+        "bytes": 25274561
+      }
+    ],
+    "after/std/2": [
+      {
+        "elapsed_ns": 23811400,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 24936100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 23437100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 25361500,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 23451600,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 27301700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 24285200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 23463000,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 23689300,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29911800,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 26235100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 25781200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 25873100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 26977700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 25729600,
+        "units": 200000,
+        "bytes": 25274561
+      }
+    ],
+    "before/write/2": [
+      {
+        "elapsed_ns": 188587500,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 179086900,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 177880600,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 179600800,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 180314600,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 176706100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 175361900,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 190199300,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 181184200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 182034200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 173697900,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 190225800,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 194417100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 208211300,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 180488800,
+        "units": 200000,
+        "bytes": 25274561
+      }
+    ],
+    "after/write/2": [
+      {
+        "elapsed_ns": 30601400,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29042900,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29664300,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29162500,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 34337400,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29291000,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29342100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29434100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28680000,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29360800,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28522100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 30305000,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 31139600,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 33859900,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 30254800,
+        "units": 200000,
+        "bytes": 25274561
+      }
+    ],
+    "before/print/2": [
+      {
+        "elapsed_ns": 177133100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 174530300,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 175765700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 181514100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 176391100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 175791000,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 186533700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 180284200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 178525700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 174698700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 176552900,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 178119600,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 187699500,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 184201500,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 180531400,
+        "units": 200000,
+        "bytes": 25274561
+      }
+    ],
+    "after/print/2": [
+      {
+        "elapsed_ns": 28336100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28515000,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28602800,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28966600,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28992200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28416200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 35493200,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 31447800,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 31817100,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29337900,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29058700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29288700,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 30131400,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 28845800,
+        "units": 200000,
+        "bytes": 25274561
+      },
+      {
+        "elapsed_ns": 29698000,
+        "units": 200000,
+        "bytes": 25274561
+      }
+    ],
+    "before/std/8": [
+      {
+        "elapsed_ns": 10834200,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11332100,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11140200,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11034100,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10789100,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11551600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10738300,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11359600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10924400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11238000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11145600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 13089600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11393800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 12511900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10477500,
+        "units": 200000,
+        "bytes": 8501611
+      }
+    ],
+    "after/std/8": [
+      {
+        "elapsed_ns": 10672600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11174800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11453900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11033600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11022300,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11236900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10928800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 15398900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10982900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11017900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11207700,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11029800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11914900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 12335600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10795000,
+        "units": 200000,
+        "bytes": 8501611
+      }
+    ],
+    "before/write/8": [
+      {
+        "elapsed_ns": 58326200,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 64296800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 63297300,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 59086200,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 59927400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 62068300,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 62863500,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 63650900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 59975500,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 62219900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 63210900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 66855900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 61698100,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 62118400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 59627100,
+        "units": 200000,
+        "bytes": 8501611
+      }
+    ],
+    "after/write/8": [
+      {
+        "elapsed_ns": 11180400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 12820000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11485500,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11532000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11843000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11620800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11352600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11603600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11283200,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11235400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11446700,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11757600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 14268700,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 12608400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11242800,
+        "units": 200000,
+        "bytes": 8501611
+      }
+    ],
+    "before/print/8": [
+      {
+        "elapsed_ns": 65734400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 63384300,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 58173800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 63867400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 60875300,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 60599000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 60141600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 59637000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 58637000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 64373800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 65952000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 65879400,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 61013000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 62200200,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 59228000,
+        "units": 200000,
+        "bytes": 8501611
+      }
+    ],
+    "after/print/8": [
+      {
+        "elapsed_ns": 11688200,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11286000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10858700,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11280900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10797100,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11433600,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11438800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11077900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10998000,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11044700,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10900500,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 10965900,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 15353500,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 11054800,
+        "units": 200000,
+        "bytes": 8501611
+      },
+      {
+        "elapsed_ns": 12512900,
+        "units": 200000,
+        "bytes": 8501611
+      }
+    ],
+    "before/std/16": [
+      {
+        "elapsed_ns": 8962700,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8960200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8916200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9202400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8847800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8871500,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 10351400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8853300,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8942500,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8992000,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8996700,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8831700,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9122700,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9313400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9015800,
+        "units": 200000,
+        "bytes": 6355359
+      }
+    ],
+    "after/std/16": [
+      {
+        "elapsed_ns": 11344200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9001100,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8699000,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9050200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9228100,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8934000,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9082200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9386400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 11655900,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9877600,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8984000,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8887200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 11208300,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 10640800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9141900,
+        "units": 200000,
+        "bytes": 6355359
+      }
+    ],
+    "before/write/16": [
+      {
+        "elapsed_ns": 44829900,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 44512400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 42817600,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43921500,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43407300,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43827600,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43271000,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 46464800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 48357900,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 50049600,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43269100,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 44198200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 51731600,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 45469100,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 45289200,
+        "units": 200000,
+        "bytes": 6355359
+      }
+    ],
+    "after/write/16": [
+      {
+        "elapsed_ns": 9358400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9172100,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8736800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8349300,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9082300,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9432400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9791500,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8754900,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8833900,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8712200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9557800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8764400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9810400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 10294800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 10013900,
+        "units": 200000,
+        "bytes": 6355359
+      }
+    ],
+    "before/print/16": [
+      {
+        "elapsed_ns": 43271400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43400400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43313200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43962300,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43092300,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 44764100,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 48125500,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 46342900,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 44347200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43240200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 43127800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 44278200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 50887200,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 44955600,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 50362700,
+        "units": 200000,
+        "bytes": 6355359
+      }
+    ],
+    "after/print/16": [
+      {
+        "elapsed_ns": 8461500,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8802600,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8285700,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8518800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8888400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9407800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9032400,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 12342700,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8686800,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8639000,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 8938100,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9179100,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 10011300,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 9526700,
+        "units": 200000,
+        "bytes": 6355359
+      },
+      {
+        "elapsed_ns": 11501500,
+        "units": 200000,
+        "bytes": 6355359
+      }
+    ]
+  },
+  "median_ns_per_value": {
+    "before/std/2": 125.9345,
+    "after/std/2": 126.8075,
+    "before/write/2": 902.444,
+    "after/write/2": 147.1705,
+    "before/print/2": 890.598,
+    "after/print/2": 145.2935,
+    "before/std/8": 55.728,
+    "after/std/8": 55.168,
+    "before/write/8": 310.592,
+    "after/write/8": 57.66,
+    "before/print/8": 305.065,
+    "after/print/8": 55.3895,
+    "before/std/16": 44.8135,
+    "after/std/16": 45.7095,
+    "before/write/16": 222.562,
+    "after/write/16": 45.8605,
+    "before/print/16": 221.391,
+    "after/print/16": 44.6905
+  }
+}

@@ -14,6 +14,9 @@
   reverse chunk iterator; an odd leading digit uses the iterator's remainder.
   Values fitting u32 use a narrow converter. Larger u64 values split into
   eight-digit chunks, with zero-padded tails converted using u32 arithmetic.
+  Nondecimal output uses mask/shift for power-of-two bases; general bases retain
+  checked output spans and division. The dedicated radix example compares
+  direct writes, whole-argument reservations and std on identical u128 inputs.
 - `Arguments` is a statically typed list used by print macros. Its constant
   `RESERVABLE` propagates field capabilities through composite formatters,
   including joins and optional values.
