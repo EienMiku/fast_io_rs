@@ -134,3 +134,39 @@ fn binary_endian_values_cross_source_boundaries() {
         })
     ));
 }
+
+#[test]
+fn bounded_records_handle_crlf_utf8_and_recovery() {
+    use fast_io::{RecordError, read_line, read_record};
+    for size in 1..=8 {
+        let mut source = Chunks {
+            bytes: "\r\n🦀\r\n123456789\nok\nlast\r".as_bytes(),
+            size,
+        };
+        let mut buffer = [0; 8];
+        assert_eq!(read_line(&mut source, &mut buffer).unwrap(), Some(""));
+        assert_eq!(read_line(&mut source, &mut buffer).unwrap(), Some("🦀"));
+        assert!(matches!(
+            read_line(&mut source, &mut buffer),
+            Err(RecordError::TooLong { limit: 8 })
+        ));
+        assert_eq!(read_line(&mut source, &mut buffer).unwrap(), Some("ok"));
+        assert_eq!(read_line(&mut source, &mut buffer).unwrap(), Some("last\r"));
+        assert_eq!(read_line(&mut source, &mut buffer).unwrap(), None);
+    }
+    let mut source = b"\xff\nvalid\n".as_slice();
+    let mut buffer = [0; 8];
+    assert!(matches!(
+        read_line(&mut source, &mut buffer),
+        Err(RecordError::InvalidUtf8)
+    ));
+    assert_eq!(read_line(&mut source, &mut buffer).unwrap(), Some("valid"));
+    let mut source = b",x,,".as_slice();
+    assert_eq!(read_record(&mut source, b',', &mut []).unwrap(), Some(0));
+    assert!(matches!(
+        read_record(&mut source, b',', &mut []),
+        Err(RecordError::TooLong { limit: 0 })
+    ));
+    assert_eq!(read_record(&mut source, b',', &mut []).unwrap(), Some(0));
+    assert_eq!(read_record(&mut source, b',', &mut []).unwrap(), None);
+}

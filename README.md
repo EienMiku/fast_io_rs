@@ -36,6 +36,7 @@ out.flush()?;
 - `Display`, `Debug`, and `format_args!` interoperability.
 - Bounded, whitespace-delimited scanning with integer overflow checking and buffered input.
 - Zero-copy token views for slice inputs; explicit-endian binary integer/float I/O.
+- Bounded delimiter-separated records and UTF-8 lines with error recovery.
 - Strict and lossy UTF-16 to UTF-8 conversion and UTF-16 LE/BE byte output.
 - Stable Rust, `no_std`, and explicit allocation/std feature gates.
 
@@ -94,6 +95,11 @@ are parsed in place; tokens crossing source buffers use bounded scratch storage.
 Oversized and invalid tokens are consumed so later scans can recover.
 For a slice source, `scan_bytes()` and `scan_str()` return views into the original
 input that remain valid while later tokens are read.
+
+`read_record(&mut source, delimiter, &mut buffer)` reads a bounded record and
+returns its length, excluding the delimiter. `read_line(&mut source, &mut buffer)`
+returns a UTF-8 view with LF/CRLF removed. Both consume oversized records before
+returning an error, allowing the next call to recover.
 
 ## Features and checks
 

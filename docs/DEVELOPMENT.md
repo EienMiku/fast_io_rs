@@ -23,7 +23,7 @@ retain their own implementation and licensing.
 Presence and forwarding; slice/Vec/std sinks; integer/float/string formatting;
 radix, quoted strings and byte-width alignment; output batches and composition;
 persistent buffering; locked stdio and owned formatting macros; std fmt adapters;
-bounded scanning and borrowed slice tokens; buffered input; explicit-endian
+bounded scanning and borrowed slice tokens; bounded records/UTF-8 lines; buffered input; explicit-endian
 binary primitive I/O; UTF-16/UTF-8 adapters; optional struct/enum derive; examples
 and reproducible formatting/scanning microbenchmarks.
 
@@ -69,8 +69,8 @@ See [PERFORMANCE.md](PERFORMANCE.md) for measured snapshots and limitations.
 
 ## Next priorities
 
-- Add practical bounded line/record and stream-copy operations to complement
-  token scanning and binary primitives.
+- Add stream-copy operations to complement token/record scanning and binary
+  primitives.
 - Validate device paths with a real file/pipe benchmark before adding native
   handles or more complex OS specialization.
 - Investigate enum reserve propagation if measurements justify it.

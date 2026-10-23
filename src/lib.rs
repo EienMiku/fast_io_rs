@@ -20,6 +20,7 @@ pub mod memory;
 pub mod padding;
 pub mod quoted;
 pub mod radix;
+pub mod record;
 pub mod scan;
 pub mod source;
 #[cfg(feature = "std")]
@@ -43,6 +44,7 @@ pub use padding::{Alignment, Padding, pad};
 pub use presence::{Presence, provided, provided0, provided2, provided3};
 pub use quoted::{Quoted, quoted};
 pub use radix::{Radix, bin, hex, oct, radix};
+pub use record::{RecordError, read_line, read_record};
 pub use scan::{ParseError, Scan, ScanError, Scanner};
 pub use sink::{Sink, write_scatter};
 pub use source::Source;
