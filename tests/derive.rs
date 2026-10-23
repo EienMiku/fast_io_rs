@@ -115,3 +115,48 @@ fn derived_enum_variants_preserve_static_field_dispatch() {
     fast_io::print!(&mut output; Event::Raw(Streaming)).unwrap();
     assert_eq!(output.as_bytes(), b"<stream>");
 }
+
+#[test]
+fn wide_layouts_compile_with_default_limits_and_preserve_argument_order() {
+    macro_rules! check_wide {
+        ($($field:ident),+) => {{
+            #[derive(Encode)]
+            struct Wide { $($field: u8),+ }
+            #[derive(Encode)]
+            enum WideEnum {
+                Fields { $($field: u8),+ },
+                Empty,
+            }
+            assert!(const { fast_io::provided(Wide::reserve_size) });
+            assert!(const { fast_io::provided(WideEnum::reserve_size) });
+            let fields = [$(concat!(stringify!($field), ": 1")),+].join(", ");
+            let mut bytes = [0; 2048];
+            let mut output = fast_io::SliceSink::new(&mut bytes);
+            fast_io::print!(&mut output; Wide { $($field: 1),+ }).unwrap();
+            assert_eq!(output.as_bytes(), format!("Wide {{ {fields} }}").as_bytes());
+            output.clear();
+            fast_io::print!(&mut output; WideEnum::Fields { $($field: 1),+ }).unwrap();
+            assert_eq!(output.as_bytes(), format!("WideEnum::Fields {{ {fields} }}").as_bytes());
+            output.clear();
+            fast_io::print!(&mut output; WideEnum::Empty).unwrap();
+            assert_eq!(output.as_bytes(), b"WideEnum::Empty");
+            output.clear();
+            let mut sequence = 0u8;
+            fast_io::print!(&mut output; $({
+                let _ = stringify!($field);
+                let value = sequence;
+                sequence += 1;
+                value
+            }),+).unwrap();
+            assert_eq!(sequence, 64);
+            let expected: String = (0u8..64).map(|n| n.to_string()).collect();
+            assert_eq!(output.as_bytes(), expected.as_bytes());
+        }};
+    }
+    check_wide!(
+        f00, f01, f02, f03, f04, f05, f06, f07, f08, f09, f10, f11, f12, f13, f14, f15, f16, f17,
+        f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30, f31, f32, f33, f34, f35,
+        f36, f37, f38, f39, f40, f41, f42, f43, f44, f45, f46, f47, f48, f49, f50, f51, f52, f53,
+        f54, f55, f56, f57, f58, f59, f60, f61, f62, f63
+    );
+}

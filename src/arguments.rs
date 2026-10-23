@@ -14,6 +14,14 @@ pub struct Cons<'a, H: ?Sized, T> {
     pub tail: T,
 }
 
+/// Join two argument subtrees without extending the per-field recursion depth.
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct Joined<L, R> {
+    pub left: L,
+    pub right: R,
+}
+
 /// A heterogeneous sequence whose elements can be statically dispatched.
 #[doc(hidden)]
 pub trait Arguments {
@@ -52,6 +60,34 @@ impl<A: Arguments + ?Sized> Arguments for &A {
         batch: &mut Batch<'_, 'v, S, B, P>,
     ) -> Result<(), S::Error> {
         A::append(self, batch)
+    }
+}
+
+impl<L: Arguments, R: Arguments> Arguments for Joined<L, R> {
+    const RESERVABLE: bool = L::RESERVABLE && R::RESERVABLE;
+    #[inline]
+    fn reserve_size(&self) -> Option<usize> {
+        self.left
+            .reserve_size()?
+            .checked_add(self.right.reserve_size()?)
+    }
+    #[inline(always)]
+    fn encode_reserved(&self, output: &mut [u8]) -> usize {
+        let used = self.left.encode_reserved(output);
+        used + self.right.encode_reserved(&mut output[used..])
+    }
+    #[inline]
+    fn stream<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
+        self.left.stream(sink)?;
+        self.right.stream(sink)
+    }
+    #[inline]
+    fn append<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
+        &'v self,
+        batch: &mut Batch<'_, 'v, S, B, P>,
+    ) -> Result<(), S::Error> {
+        self.left.append(batch)?;
+        self.right.append(batch)
     }
 }
 impl Arguments for End {
@@ -219,6 +255,16 @@ pub fn format_text<A: Arguments>(
 #[macro_export]
 macro_rules! __fast_io_args {
     () => { $crate::arguments::End };
+    // Group long invocations eight at a time so each value does not add another
+    // macro expansion and trait recursion level. Expressions still occur once,
+    // in left-to-right evaluation order.
+    ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr,
+        $($rest:expr),+ $(,)?) => {
+        $crate::arguments::Joined {
+            left: $crate::__fast_io_args!($a, $b, $c, $d, $e, $f, $g, $h),
+            right: $crate::__fast_io_args!($($rest),+),
+        }
+    };
     ($head:expr $(, $tail:expr)* $(,)?) => {
         $crate::arguments::Cons {
             head: &$head,

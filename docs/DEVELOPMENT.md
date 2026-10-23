@@ -16,6 +16,9 @@
   Its recursive reserved-output step and thin adapters inline deliberately:
   leaving these as separate functions materialized field-pointer lists and
   measurably slowed derived structs/enums in the local benchmark.
+  Derived layouts build balanced argument trees; print macros group long calls
+  in chunks of eight. This keeps ordinary wide records below default compiler
+  recursion limits without asking users for a crate-level attribute.
 - `Source` exposes a buffered byte slice. `Scanner` parses contiguous tokens in
   place and joins split tokens into bounded scratch storage. `scan_fold` instead
   visits borrowed chunks with no token scratch array, retaining the length limit

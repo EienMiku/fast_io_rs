@@ -262,6 +262,21 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             }
         })
         .collect();
+    let heads: Vec<_> = parts
+        .iter()
+        .filter_map(|part| match part {
+            Part::Text(text) if text.is_empty() => None,
+            Part::Text(text) => {
+                let literal = LitStr::new(text, Span::call_site());
+                Some(quote!(#literal))
+            }
+            Part::Field(index) => {
+                let member = &fields[*index].member;
+                Some(quote!(&self.#member))
+            }
+        })
+        .collect();
+    let arguments = argument_tree(&heads, &path);
     let streaming = parts.iter().filter_map(|part| match part {
         Part::Text(text) if text.is_empty() => None,
         Part::Text(text) => {
@@ -294,10 +309,10 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             }
             #borrowed
             fn reserve_size(&self) -> impl #path::Presence<::core::primitive::usize> {
-                #path::arguments::ReservedSize(#path::__fast_io_args!(#(#expressions),*))
+                #path::arguments::ReservedSize(#arguments)
             }
             fn encode_reserved(&self, #out_ident: &mut [::core::primitive::u8]) -> impl #path::Presence<::core::primitive::usize> {
-                #path::arguments::ReservedWrite(#path::__fast_io_args!(#(#expressions),*), #out_ident)
+                #path::arguments::ReservedWrite(#arguments, #out_ident)
             }
             fn encode_batch<#lifetime, #sink: #path::Sink + ?::core::marker::Sized, const #bytes: ::core::primitive::usize, const #pieces: ::core::primitive::usize>(
                 &#lifetime self, #batch_ident: &mut #path::Batch<'_, #lifetime, #sink, #bytes, #pieces>
@@ -444,8 +459,8 @@ fn expand_enum(
         });
         // Construct direct field borrows. Taking &binding would borrow a local
         // pattern variable and prevent returning the deferred capability.
-        let mut arguments = quote!(#path::arguments::End);
-        for part in parts.iter().rev() {
+        let mut heads = Vec::new();
+        for part in &parts {
             let head = match part {
                 Part::Text(text) if text.is_empty() => continue,
                 Part::Text(text) => {
@@ -454,8 +469,9 @@ fn expand_enum(
                 }
                 Part::Field(index) => bindings[*index].clone(),
             };
-            arguments = quote!(#path::arguments::Cons { head: #head, tail: #arguments });
+            heads.push(head);
         }
+        let arguments = argument_tree(&heads, path);
         let size = reserved_choice(
             variant_index,
             data.variants.len(),
@@ -519,5 +535,20 @@ fn reserved_choice(
     } else {
         let inner = reserved_choice(index - split, count - split, value, path);
         quote!(#path::arguments::ReservedChoice::Right(#inner))
+    }
+}
+
+// Build the formatting list directly, with logarithmic depth. Going through
+// recursive macro invocations hit the default recursion limit on wide structs.
+fn argument_tree(heads: &[proc_macro2::TokenStream], path: &syn::Path) -> proc_macro2::TokenStream {
+    match heads {
+        [] => quote!(#path::arguments::End),
+        [head] => quote!(#path::arguments::Cons { head: #head, tail: #path::arguments::End }),
+        _ => {
+            let split = heads.len().div_ceil(2);
+            let left = argument_tree(&heads[..split], path);
+            let right = argument_tree(&heads[split..], path);
+            quote!(#path::arguments::Joined { left: #left, right: #right })
+        }
     }
 }
