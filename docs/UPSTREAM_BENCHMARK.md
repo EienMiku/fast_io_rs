@@ -244,3 +244,21 @@ also checked with a minimal `int main(){}` program. Both reach the same socket
 header; `-fno-exceptions` and `-DFAST_IO_DISABLE_FLOATING_POINT` do not avoid the
 syntax error. The upstream checkout remains unmodified. No private-header
 assembly or standard-library file substitute is used to imply native parity.
+
+### Separate u128 radix attempt
+
+`tools/compare_radix.py` and `tools/radix_compare.cpp` preserve a second matched
+memory benchmark, using the same 1024 u128 values as `radix_throughput`. On this
+compiler/STL combination, upstream's octal instantiation rejects
+`unsigned __int128` under a `std::integral` constraint in
+`integers/impl.h:1209`. The comparison driver consequently only instantiates
+bases 2 and 16.
+
+That subset compiled, but the C++ verification program did not finish within
+the bounded run and produced no verification file. The cause is not established;
+there are no C++ radix timing results. Rust's exported outputs for both bases
+match all 1024 independent Python encodings. The
+[failed attempt with build commands and binary hashes](benchmarks/upstream-radix-attempt-2026-10-24.json)
+is retained separately from successful results. The runner verifies all bytes
+before accepting timings and writes failure metadata on a compile/run error.
+This does not affect the completed eight-workload decimal comparison above.

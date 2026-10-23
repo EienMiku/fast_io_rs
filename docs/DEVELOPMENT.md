@@ -148,6 +148,37 @@ rustdoc and a nightly all-target check.
 See [PERFORMANCE.md](PERFORMANCE.md) for measured snapshots and limitations.
 See [DESIGN.md](DESIGN.md) for the optional-hook mechanism and a codegen probe.
 
+## Deadline-session handoff (2026-10-24 UTC+08:00)
+
+The implementation remains stable Rust, safe Rust in the runtime and derive,
+and explicitly gated for std/alloc. The user authorized parallel agents during
+this session; each had separate file ownership and performance measurements
+ran serially. Toolchains were upgraded earlier and do not need another upgrade.
+No upstream C++ source was imported, and nothing was published to crates.io.
+
+| Area | Implemented checkpoint | Remaining scope |
+| --- | --- | --- |
+| Customization | Presence hooks for encoding, sinks, sources and streaming parsers | Full upstream customization surface |
+| Formatting | Primitive numbers, radix, quoting, padding, composition, UTF-16 and derive | Locale rules, other codecs, full format syntax |
+| Input | Bounded tokens/records, integer radix streaming, allocated token streaming, binary input and copy | Random access, native handle abstractions and async operations |
+| Devices | std-backed files/sockets/stdio, fixed buffers and alloc containers | Direct OS specialization and memory mapping |
+| Performance | Eight matched clang/Rust workloads plus before/after radix measurements | Broad floating-point/codec/device parity; complete C++ u128 radix comparison |
+
+The integrated local checkpoint passed 40 integration tests, one derive parser
+test and two doctests with all features; no-default tests, minimal derive,
+Clippy with warnings denied, nightly compatibility and Cortex-M0 core/optional
+features also passed. Rustdoc builds with warnings denied. GitHub's complete
+five-job matrix passed at `6b42826`, including MSRV 1.85 and Linux/Windows/macOS.
+Later commits add benchmark tooling and documentation; consult CI for their
+latest status rather than assuming an older success covers a new commit.
+
+At `941f0ec`, the eight local C++/Rust median ratios were 0.85–1.22. This supports
+comparable performance for those inputs, not full feature/performance parity.
+Native C++ device headers failed to compile with the available clang/MSVC STL.
+A separate u128 radix comparison also remains incomplete, with both a base-8
+compile limitation and base-2/16 verification timeouts. Both successful and
+failed measurement records are linked from `UPSTREAM_BENCHMARK.md`.
+
 ## Next priorities
 
 - Compare the upstream C++ implementation with matched workloads using

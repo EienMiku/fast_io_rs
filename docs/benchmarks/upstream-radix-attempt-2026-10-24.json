@@ -1,0 +1,65 @@
+{
+  "started_at_utc": "2026-10-23T16:44:38.204436+00:00",
+  "upstream_revision": "7a6fa9b680de8355f9f743e0f8950492cf5a42f0",
+  "rust_revision": "46805ba225b32954a03d9e86a74982c21ccbecfc",
+  "rust_worktree_status": "",
+  "platform": "Windows-10-10.0.29683-SP0",
+  "cpu": "Intel64 Family 6 Model 141 Stepping 1, GenuineIntel",
+  "bases": [
+    2,
+    16
+  ],
+  "count": 200000,
+  "rounds": 15,
+  "commands": [
+    [
+      "D:\\Program Files\\LLVM\\bin\\clang++.EXE",
+      "-std=c++26",
+      "-O3",
+      "-DNDEBUG",
+      "-D_CRT_SECURE_NO_WARNINGS",
+      "-I",
+      "C:\\Users\\12153\\AppData\\Local\\Temp\\fast-io-cpp-benchmark-7a6fa9b680de\\include",
+      "D:\\Coding\\fast_io_rs\\tools\\radix_compare.cpp",
+      "-o",
+      "D:\\Coding\\fast_io_rs\\target\\radix-compare\\radix-cpp.exe",
+      "-lntdll"
+    ],
+    [
+      "cargo",
+      "+stable",
+      "build",
+      "--release",
+      "--example",
+      "radix_throughput",
+      "--target-dir",
+      "D:\\Coding\\fast_io_rs\\target\\radix-compare\\rust"
+    ]
+  ],
+  "cxx_version": "clang version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)\nTarget: x86_64-pc-windows-msvc\nThread model: posix\nInstalledDir: D:\\Program Files\\LLVM\\bin",
+  "rust_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-pc-windows-msvc\nrelease: 1.99.1\nLLVM version: 23.1.1",
+  "environment": {
+    "RUSTFLAGS": null,
+    "CARGO_ENCODED_RUSTFLAGS": null,
+    "CARGO_PROFILE_RELEASE_LTO": null,
+    "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": null,
+    "CARGO_PROFILE_RELEASE_PANIC": null
+  },
+  "contract": "130-byte fixed buffer; no prefixes; 1024 prebuilt u128 values; 10000 warmup values; input creation, verification and startup outside timer; no CPU pinning; C++ static bases and Rust runtime radix API",
+  "binaries": {
+    "cpp": {
+      "path": "D:\\Coding\\fast_io_rs\\target\\radix-compare\\radix-cpp.exe",
+      "sha256": "bf4ebcca06244cea94171b95a9067da11fecd16bb3a13d6e6456833cfba6f634"
+    },
+    "rust": {
+      "path": "D:\\Coding\\fast_io_rs\\target\\radix-compare\\rust\\release\\examples\\radix_throughput.exe",
+      "sha256": "62af17f0b390557fc84778fe073c458cbd07974ac68a29fbd0a4c7f543118084"
+    }
+  },
+  "verification": {},
+  "status": "failed",
+  "error": "Command '['D:\\\\Coding\\\\fast_io_rs\\\\target\\\\radix-compare\\\\radix-cpp.exe', 'verify', '2', 'C:\\\\Users\\\\12153\\\\AppData\\\\Local\\\\Temp\\\\fast-io-radix-ervr_pa7\\\\cpp-2.bin']' timed out after 10 seconds",
+  "stdout": "",
+  "stderr": "",
+  "finished_at_utc": "2026-10-23T16:44:53.796329+00:00"
+}
