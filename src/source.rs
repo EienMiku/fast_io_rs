@@ -17,9 +17,11 @@ impl<S: Source + ?Sized> Source for &mut S {
 }
 impl Source for &[u8] {
     type Error = core::convert::Infallible;
+    #[inline]
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         Ok(self)
     }
+    #[inline]
     fn consume(&mut self, count: usize) {
         *self = &self[count..];
     }

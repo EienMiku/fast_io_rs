@@ -87,6 +87,7 @@ impl<S: Source, const N: usize> Scanner<S, N> {
         self.source
     }
 
+    #[inline]
     pub fn scan<T: Scan>(&mut self) -> Result<Option<T>, ScanError<S::Error>> {
         let mut scratch = [0; N];
         let mut used = 0;
@@ -106,27 +107,30 @@ impl<S: Source, const N: usize> Scanner<S, N> {
                         .map_err(ScanError::Parse)
                 };
             }
-            if !started {
-                let skip = bytes.iter().take_while(|c| c.is_ascii_whitespace()).count();
-                if skip != 0 {
-                    self.source.consume(skip);
-                    continue;
-                }
+            let skip = if !started {
+                bytes.iter().take_while(|c| c.is_ascii_whitespace()).count()
+            } else {
+                0
+            };
+            if skip == bytes.len() {
+                self.source.consume(skip);
+                continue;
             }
-            let end = bytes
+            let token = &bytes[skip..];
+            let end = token
                 .iter()
                 .position(u8::is_ascii_whitespace)
-                .unwrap_or(bytes.len());
-            let complete = end < bytes.len();
+                .unwrap_or(token.len());
+            let complete = end < token.len();
             if !started && complete {
                 let result = if end > N {
                     Err(ScanError::TokenTooLong { limit: N })
                 } else {
-                    T::scan_token(&bytes[..end])
+                    T::scan_token(&token[..end])
                         .map(Some)
                         .map_err(ScanError::Parse)
                 };
-                self.source.consume(end);
+                self.source.consume(skip + end);
                 return result;
             }
             started = true;
@@ -134,11 +138,11 @@ impl<S: Source, const N: usize> Scanner<S, N> {
                 if end > N - used {
                     too_long = true;
                 } else {
-                    scratch[used..used + end].copy_from_slice(&bytes[..end]);
+                    scratch[used..used + end].copy_from_slice(&token[..end]);
                     used += end;
                 }
             }
-            self.source.consume(end);
+            self.source.consume(skip + end);
             if complete {
                 return if too_long {
                     Err(ScanError::TokenTooLong { limit: N })
@@ -159,10 +163,21 @@ impl<S: Source, const N: usize> Scanner<S, N> {
 macro_rules! unsigned {
     ($($ty:ty),*) => {$(
         impl Scan for $ty {
+            #[inline]
             fn scan_token(token: &[u8]) -> Result<Self, ParseError> {
                 let start = usize::from(token.first() == Some(&b'+'));
                 if token.len() == start { return Err(ParseError::Empty); }
                 let mut value: Self = 0;
+                // Every decimal value this short fits, so only validate digits.
+                // floor(BITS * log10(2)) is a safe bound for all integer widths.
+                if token.len() - start <= (<$ty>::BITS as usize * 30103 / 100000) {
+                    for (index, &byte) in token[start..].iter().enumerate() {
+                        let digit = byte.wrapping_sub(b'0');
+                        if digit > 9 { return Err(ParseError::InvalidDigit { offset: start + index }); }
+                        value = value.wrapping_mul(10).wrapping_add(digit as Self);
+                    }
+                    return Ok(value);
+                }
                 for (index, &byte) in token[start..].iter().enumerate() {
                     if !byte.is_ascii_digit() { return Err(ParseError::InvalidDigit { offset: start + index }); }
                     value = value.checked_mul(10)
@@ -177,11 +192,20 @@ macro_rules! unsigned {
 macro_rules! signed {
     ($($ty:ty),*) => {$(
         impl Scan for $ty {
+            #[inline]
             fn scan_token(token: &[u8]) -> Result<Self, ParseError> {
                 let negative = token.first() == Some(&b'-');
                 let start = usize::from(negative || token.first() == Some(&b'+'));
                 if token.len() == start { return Err(ParseError::Empty); }
                 let mut value: Self = 0;
+                if token.len() - start <= ((<$ty>::BITS as usize - 1) * 30103 / 100000) {
+                    for (index, &byte) in token[start..].iter().enumerate() {
+                        let digit = byte.wrapping_sub(b'0');
+                        if digit > 9 { return Err(ParseError::InvalidDigit { offset: start + index }); }
+                        value = value.wrapping_mul(10).wrapping_add(digit as Self);
+                    }
+                    return Ok(if negative { value.wrapping_neg() } else { value });
+                }
                 for (index, &byte) in token[start..].iter().enumerate() {
                     if !byte.is_ascii_digit() { return Err(ParseError::InvalidDigit { offset: start + index }); }
                     let multiplied = value.checked_mul(10).ok_or(ParseError::Overflow)?;
