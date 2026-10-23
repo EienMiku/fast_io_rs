@@ -5,6 +5,7 @@ Pass an external upstream checkout; this script neither downloads nor edits it.
 See docs/UPSTREAM_BENCHMARK.md for the pinned revision and measurement contract.
 """
 import argparse
+import ctypes
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -49,6 +50,25 @@ def repeated_total(values, count):
     return whole * sum(values) + sum(values[:remainder])
 
 
+def pin_cpu(cpu):
+    """Constrain only this runner and its future benchmark children."""
+    if cpu < 0:
+        raise ValueError("CPU index must be nonnegative")
+    if os.name == "nt":
+        if cpu >= ctypes.sizeof(ctypes.c_size_t) * 8:
+            raise ValueError("CPU index exceeds the current Windows processor group")
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.GetCurrentProcess.restype = ctypes.c_void_p
+        kernel.SetProcessAffinityMask.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+        kernel.SetProcessAffinityMask.restype = ctypes.c_int
+        if not kernel.SetProcessAffinityMask(kernel.GetCurrentProcess(), 1 << cpu):
+            raise ctypes.WinError(ctypes.get_last_error())
+    elif hasattr(os, "sched_setaffinity"):
+        os.sched_setaffinity(0, {cpu})
+    else:
+        raise RuntimeError("CPU affinity is unavailable on this platform")
+
+
 def main():
     started_at = datetime.now(timezone.utc).isoformat()
     parser = argparse.ArgumentParser(description=__doc__)
@@ -60,6 +80,7 @@ def main():
     parser.add_argument("--samples", type=int, default=9)
     parser.add_argument("--payload", type=int, default=0)
     parser.add_argument("--baseline-rust", type=Path, help="also run a previously built Rust driver")
+    parser.add_argument("--cpu", type=int, help="pin this runner and benchmark children to one logical CPU")
     parser.add_argument("--output", type=Path, default=ROOT / "target/upstream-results.json")
     args = parser.parse_args()
     if min(args.count, args.scan_count, args.samples) <= 0 or args.payload < 0:
@@ -94,6 +115,8 @@ def main():
     print("Building C++ and Rust drivers...", flush=True)
     run(cpp_command)
     run(rust_command)
+    if args.cpu is not None:
+        pin_cpu(args.cpu)
     records, numbers = reference(args.payload)
     expected = b"".join(records)
     with tempfile.TemporaryDirectory(prefix="fast-io-verify-") as scratch:
@@ -134,6 +157,7 @@ def main():
         "rust_worktree_status": run(["git", "status", "--porcelain"]),
         "platform": platform.platform(),
         "cpu": platform.processor(),
+        "pinned_logical_cpu": args.cpu,
         "cxx_version": run([cxx, "--version"]),
         "rust_version": run(["rustc", "+stable", "-vV"]),
         "commands": [[str(arg) for arg in command] for command in (cpp_command, rust_command)],

@@ -32,6 +32,11 @@ to a separate path. After editing the implementation, pass that saved path with
 rotates all three in the same run, and records executable SHA-256 hashes. Keep
 the driver workload unchanged between those builds.
 
+`--cpu N` optionally pins the runner and future benchmark children to logical
+CPU N on Windows or Linux. Compilation happens before pinning; no global CPU,
+frequency or power settings change. The selected CPU is recorded in the report.
+This reduces migration noise but does not isolate that CPU from other work.
+
 ## Measurement contract
 
 - A deterministic table of 1,024 records includes zero, unsigned MAX, signed MIN,
@@ -59,7 +64,7 @@ the driver workload unchanged between those builds.
   byte-for-byte with Python's output and checks measured byte counts/checksums.
 - Each sample is a separate process with internal timing. The runner rotates
   execution across implementations/workloads, reports medians and ranges, and
-  retains every sample. It does not pin CPU cores or control frequency/load.
+  retains every sample. CPU pinning is opt-in; frequency/load are uncontrolled.
 
 The C++ build uses `-std=c++26 -O3 -DNDEBUG`, with exceptions enabled. Rust uses
 the default stable release profile. Neither build requests native CPU tuning,
