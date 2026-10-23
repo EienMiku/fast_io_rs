@@ -279,3 +279,36 @@ macro_rules! scan {
         (|| Ok::<_, $crate::ScanError<_>>(($(scanner.require::<$ty>()?,)+)))()
     }};
 }
+
+impl<'a, const N: usize> Scanner<&'a [u8], N> {
+    /// Borrow a token directly from the original slice, without allocation.
+    ///
+    /// The returned view may be retained while subsequent tokens are read.
+    pub fn scan_bytes(&mut self) -> Result<Option<&'a [u8]>, ScanError<core::convert::Infallible>> {
+        let input = self.source;
+        let start = input.iter().take_while(|b| b.is_ascii_whitespace()).count();
+        if start == input.len() {
+            self.source = &input[start..];
+            return Ok(None);
+        }
+        let end = start
+            + input[start..]
+                .iter()
+                .position(u8::is_ascii_whitespace)
+                .unwrap_or(input.len() - start);
+        self.source = &input[end..];
+        if end - start > N {
+            return Err(ScanError::TokenTooLong { limit: N });
+        }
+        Ok(Some(&input[start..end]))
+    }
+
+    /// Borrow a validated UTF-8 token from the original slice.
+    pub fn scan_str(&mut self) -> Result<Option<&'a str>, ScanError<core::convert::Infallible>> {
+        self.scan_bytes()?
+            .map(|bytes| {
+                core::str::from_utf8(bytes).map_err(|_| ScanError::Parse(ParseError::InvalidUtf8))
+            })
+            .transpose()
+    }
+}

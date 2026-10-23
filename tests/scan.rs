@@ -42,6 +42,11 @@ fn scan_across_boundaries_and_recover_after_bad_tokens() {
 
 #[test]
 fn parsing_bounds_and_utf8() {
+    let mut views = Scanner::new("name 42 next".as_bytes());
+    let name = views.scan_str().unwrap().unwrap();
+    assert_eq!(views.require::<u8>().unwrap(), 42);
+    assert_eq!(views.scan_bytes().unwrap(), Some(b"next".as_slice()));
+    assert_eq!(name, "name");
     assert_eq!(
         i128::scan_token(b"-170141183460469231731687303715884105728"),
         Ok(i128::MIN)
