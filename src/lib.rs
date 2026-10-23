@@ -39,6 +39,8 @@ pub use binary::{Binary, Endian, ReadError, be, le, read_be, read_le};
 pub use buffered::Buffered;
 pub use compose::{Parts, join};
 pub use encode::{Encode, write};
+#[cfg(feature = "float")]
+pub use float::{Float, FloatFormat, fixed, scientific};
 pub use fmt_bridge::{debug, display, write_fmt};
 pub use memory::{CapacityError, SliceSink};
 pub use padding::{Alignment, Padding, pad};

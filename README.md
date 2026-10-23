@@ -30,6 +30,8 @@ out.flush()?;
 - Binary/octal/hexadecimal/general radix output and JSON-compatible quoted strings.
 - Byte-width alignment and padding, with conditional reserved output.
 - Optional shortest round-trip float formatting through [zmij](https://github.com/dtolnay/zmij).
+- Fixed-point/scientific precision with reserved output (`fixed(value, 2)`,
+  `scientific(value, 6)`); these use core::fmt's rounding and work without std.
 - Borrowed fragments and generated scratch data combined into bounded scatter batches.
 - Nested `concat!` and `join` values flatten into the outer batch.
 - Compositions, joins and optional values propagate their fields' reserve support.

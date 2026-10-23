@@ -96,3 +96,40 @@ fn floats_round_trip_and_preserve_special_values() {
     fast_io::write(&mut bytes, &f32::NAN).unwrap();
     assert_eq!(bytes, b"NaN");
 }
+
+#[cfg(feature = "float")]
+#[test]
+fn explicit_float_precision_rounds_and_respects_reserved_bounds() {
+    use fast_io::{Encode, Presence, fixed, scientific};
+    assert_eq!(
+        fast_io::format_bytes!(
+            fixed(1.125f64, 2),
+            " ",
+            fixed(-0.0f32, 0),
+            " ",
+            scientific(1234.0f64, 3).uppercase()
+        ),
+        b"1.12 -0 1.234E3"
+    );
+    for value in [
+        f64::MAX,
+        -f64::MAX,
+        f64::from_bits(1),
+        f64::NAN,
+        f64::NEG_INFINITY,
+    ] {
+        for formatted in [fixed(value, 6), scientific(value, 6)] {
+            let mut buffer = vec![0; formatted.reserve_size().into_value()];
+            let used = formatted.encode_reserved(&mut buffer).into_value();
+            let mut streamed = Vec::new();
+            formatted.encode(&mut streamed).unwrap();
+            assert_eq!(&buffer[..used], streamed);
+            assert_eq!(&buffer[..used], formatted.to_string().as_bytes());
+        }
+    }
+    // Exercise a precision larger than all internal scratch buffers.
+    let bytes = fast_io::format_bytes!(scientific(0.5f32, 2048));
+    assert_eq!(bytes.len(), 2053);
+    assert!(bytes.starts_with(b"5.000"));
+    assert!(bytes.ends_with(b"e-1"));
+}
