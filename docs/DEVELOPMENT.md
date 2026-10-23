@@ -31,7 +31,7 @@ bounded scanning, parameterized parsers and base-2-through-36 integers; borrowed
 slice tokens; bounded records/UTF-8 lines; buffered input; explicit-endian
 binary primitive I/O; stream copy and byte-limited source views; UTF-16/UTF-8
 adapters; raw partial/exact reads; existing BufReader reuse; optional struct/enum derive; examples
-and reproducible formatting/scanning/file-output microbenchmarks.
+and reproducible formatting/scanning/file-output/loopback-TCP microbenchmarks.
 
 The derive supports per-type/per-variant layouts, skipping fields, transparent
 wrappers, generics and renamed dependencies. Structs propagate reserve hooks;
@@ -77,8 +77,9 @@ See [DESIGN.md](DESIGN.md) for the optional-hook mechanism and a codegen probe.
 
 ## Next priorities
 
-- Measure pipe/socket/scatter paths before adding native handles or more complex
-  OS specialization; the buffered file benchmark already checks matching bytes.
+- Measure pipes and non-loopback sockets before adding native handles or more
+  complex OS specialization. File and loopback TCP benchmarks check matching
+  bytes; TCP measurements distinguish per-record scatter from buffering records.
 - Treat scatter presence as a functional capability, not a performance promise.
   Routing oversized buffered records through scatter regressed on Windows and
   was not adopted; see the large-record measurements before revisiting it.

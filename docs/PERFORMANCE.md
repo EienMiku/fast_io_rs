@@ -7,8 +7,8 @@ or a prediction of uncached disk, terminal, or network throughput.
 
 - Windows x86-64, Intel Core i7-11800H @ 2.30 GHz.
 - Rust 1.99.1 (`58cf8f9c3`, 2026-10-13), stable, default release profile.
-- Five samples for the original memory benchmarks, nine for derived types,
-  three for file output; report medians.
+- Five samples for the original memory benchmarks and loopback sockets, nine
+  for derived types, three for file output; report medians.
 - Formatting runs alternate implementation order; the current scanner benchmark
   rotates it. Older scanner snapshots below used a fixed order without a warm-up.
 - No CPU affinity, fixed frequency, or isolated machine was used. Compare paired
@@ -20,6 +20,8 @@ cargo run --release --example scan_throughput -- 200000
 cargo run --release --example file_throughput -- 100000
 cargo run --release --example file_throughput -- 1000 16384
 cargo run --release --features derive --example derive_throughput -- 500000
+cargo run --release --example socket_throughput -- 10000 32
+cargo run --release --example socket_throughput -- 1000 16384
 ```
 
 ## Formatting
@@ -131,9 +133,34 @@ functional availability of scatter output alone does not establish that it is
 the efficient path for a device. In particular, splitting a large record into
 separate header/payload/trailer writes can defeat buffer coalescing.
 
+## Loopback TCP output
+
+The socket example creates a private loopback connection per sample, warms up
+all paths and rotates five samples. All four paths use `TCP_NODELAY`; buffered
+paths use 8192-byte buffers. The timer includes formatting, sending, shutting
+down the write half, and completion of the receiving thread. Connections and
+expected bytes are prepared before timing. Every received byte is compared
+afterwards. Results include scheduler and local TCP-stack effects and do not
+predict a remote network's performance.
+
+| Implementation | 32-byte payload, ns/record | 16384-byte payload, ns/record |
+| --- | ---: | ---: |
+| std BufWriter + writeln! | 173.88 | 15406.90 |
+| fast_io Buffered + println! | 92.16 | 18378.90 |
+| std unbuffered writeln! | 58486.42 | 49448.00 |
+| fast_io unbuffered scatter + println! | 9038.10 | 25591.70 |
+
+The small case has 10,000 records / 548,890 bytes; the large case has 1,000
+records / 16,405,890 bytes. Combining one record's fields into a scatter write
+helps relative to unbuffered field-by-field formatting in this run. Persistent
+buffering is much more effective for many small records because it can combine
+multiple records per send. The large-payload buffered result does not show a
+fast_io advantage. These are different batching policies, so their timing is not
+evidence that an individual formatting routine or system call has that speedup.
+
 ## What remains to measure
 
-- Unbuffered file, pipe and socket output, including scatter batching.
+- Unbuffered files, pipes and non-loopback sockets under varied buffering policies.
 - Formatting adapters and longer/more deeply nested derived types.
 - Small source buffers, near-limit tokens and floating-point inputs.
 - Allocation counts, generated machine code, and comparable C++ fast_io cases.

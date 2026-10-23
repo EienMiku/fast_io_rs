@@ -136,10 +136,13 @@ cargo run --release --example throughput -- 500000
 cargo run --release --example scan_throughput -- 200000
 cargo run --release --example file_throughput -- 100000
 cargo run --release --features derive --example derive_throughput -- 500000
+cargo run --release --example socket_throughput -- 10000 32
 ```
 
-The examples measure reused-Vec formatting (including derived structs/enums), in-memory scanning, and buffered file
-output separately. The file benchmark includes OS caching and does not sync to disk.
+The examples separately measure reused-Vec formatting (including derived
+structs/enums), in-memory scanning, buffered files, and loopback TCP output.
+The file benchmark includes OS caching and does not sync to disk; the TCP
+benchmark includes completion of a receiver thread on the same machine.
 Performance is being measured and tuned; no universal speedup is claimed.
 See [measured snapshots and methodology](docs/PERFORMANCE.md).
 
