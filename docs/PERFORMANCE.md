@@ -189,7 +189,7 @@ capacity, receiver scheduling and platform implementations all affect results.
 The input example reads an 8-byte header followed by a configurable payload for
 each record, from one temporary file. It compares std BufReader, Input (backed by
 std BufReader), inline BufferedInput, and an Input wrapper that deliberately
-omits the optional direct-read hook. Every received byte is verified after each
+omits both optional source hooks. Every received byte is verified after each
 sample. All paths have 8192-byte buffers, a warm-up, and seven rotated samples;
 file generation, rewind, allocations and output initialization are outside
 timing. The file is OS-cached, and reads target reused preallocated memory.
@@ -208,6 +208,23 @@ records / 16,392,000 bytes. There is no demonstrated fast_io speed advantage in
 this run. A direct-read capability can avoid an intermediate copy, but that does
 not guarantee lower total cost: small headers, prefetch state and call overhead
 also affect the result.
+
+A subsequent change added the optional `buffered_bytes` hook. Exact reads that
+fit the current cache now copy and advance directly; larger reads retain the
+generic refill loop. With the same commands and byte checks, a later paired run
+measured:
+
+| Implementation | 32-byte payload, ns/record | 16384-byte payload, ns/record |
+| --- | ---: | ---: |
+| std BufReader | 20.00 | 6737.90 |
+| fast_io Input, cached/direct hooks | 13.80 | 7195.40 |
+| fast_io BufferedInput, inline buffer | 14.09 | 6267.70 |
+| fast_io source-buffer fallback | 22.15 | 6640.90 |
+
+The local small-record result supports a separate cache-hit path. Large-read
+results remain close and vary between runs; no general large-file improvement
+is established. Earlier experiments that only changed inlining hints did not
+show a reliable benefit and were not retained.
 
 ## What remains to measure
 

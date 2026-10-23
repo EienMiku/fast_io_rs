@@ -26,6 +26,10 @@
   The optional `read_into` Presence hook lets raw reads bypass intermediate
   buffering. `Input` preserves std BufReader prefetch before bypassing; `Take`
   and mutable references preserve direct reads. Reported lengths are checked.
+  A second optional hook, `buffered_bytes`, exposes cached input without I/O.
+  Exact reads fitting that cache copy and consume directly; other reads use an
+  separate refill loop. Slice sources, both buffer wrappers and Take preserve
+  this capability. Empty cache and end of input are distinct conditions.
 - `Reader` is the minimal raw-device input trait. `BufferedInput<R, N>` adds
   fixed-capacity buffering without std/alloc, exposes `Source`, and bypasses an
   empty buffer for large direct reads. `Io<R>` adapts std readers and retries

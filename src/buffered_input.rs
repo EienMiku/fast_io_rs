@@ -94,6 +94,11 @@ impl<R: Reader, const N: usize> BufferedInput<R, N> {
 impl<R: Reader, const N: usize> Source for BufferedInput<R, N> {
     type Error = R::Error;
 
+    #[inline]
+    fn buffered_bytes(&self) -> impl Presence<&[u8]> {
+        self.buffer()
+    }
+
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         if self.position == self.filled {
             self.position = 0;

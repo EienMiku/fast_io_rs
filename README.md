@@ -130,6 +130,9 @@ the destination across chunks or reports a truncated input. These work without
 optional Presence hook for direct reads: `Input` uses it to bypass its buffer
 for large requests once prefetched bytes have been consumed. Byte-limited
 `take` views preserve this path while enforcing their limit.
+The optional `buffered_bytes` hook exposes cached bytes without performing I/O,
+allowing `read_exact` to handle an already-buffered request without a refill loop.
+An empty cached slice means only that nothing is buffered, not EOF.
 
 For devices outside std, implement `Reader::read` and wrap the device in
 `BufferedInput::<_, 1024>::new(device)`. Its fixed-capacity buffer uses no

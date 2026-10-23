@@ -43,6 +43,10 @@ impl<R: Read> Input<R> {
 }
 impl<R: Read> Source for Input<R> {
     type Error = io::Error;
+    #[inline]
+    fn buffered_bytes(&self) -> impl Presence<&[u8]> {
+        self.inner.buffer()
+    }
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         loop {
             match self.inner.fill_buf() {

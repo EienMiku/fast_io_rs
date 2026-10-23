@@ -61,6 +61,43 @@ fn fixed_input_consumes_prefetch_before_bypassing_the_buffer() {
     assert_eq!(source.buffer(), b"kl");
 }
 
+#[test]
+fn exact_reads_use_cached_bytes_and_respect_limits() {
+    struct Cached(&'static [u8]);
+    impl Source for Cached {
+        type Error = core::convert::Infallible;
+        fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
+            panic!("already-buffered reads must not enter the refill path");
+        }
+        fn consume(&mut self, count: usize) {
+            self.0 = &self.0[count..];
+        }
+        fn buffered_bytes(&self) -> impl fast_io::Presence<&[u8]> {
+            assert!(
+                !self.0.is_empty(),
+                "empty destination must not query source"
+            );
+            self.0
+        }
+    }
+    let mut input = Cached(b"payloadtail");
+    let mut limited = fast_io::take(&mut input, 7);
+    let mut payload = [0; 7];
+    fast_io::read_exact(&mut limited, &mut payload).unwrap();
+    assert_eq!(&payload, b"payload");
+    assert_eq!(limited.remaining(), 0);
+    let mut tail = [0; 4];
+    fast_io::read_exact(&mut input, &mut tail).unwrap();
+    assert_eq!(&tail, b"tail");
+    fast_io::read_exact(&mut input, &mut []).unwrap();
+
+    // An empty cache is not EOF; a partial cache must precede fresh input.
+    let mut input = BufferedInput::<_, 4>::new(b"abcde".as_slice());
+    fast_io::read_exact(&mut input, &mut payload[..3]).unwrap();
+    fast_io::read_exact(&mut input, &mut payload[3..5]).unwrap();
+    assert_eq!(&payload[..5], b"abcde");
+}
+
 #[cfg(feature = "std")]
 #[test]
 fn input_buffers_interoperate_with_std_without_losing_prefetched_bytes() {

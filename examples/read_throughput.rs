@@ -10,7 +10,7 @@ use std::{
 };
 use support::ScratchFile;
 
-// Deliberately omit read_into to measure the source-buffer copying fallback.
+// Omit both optional source hooks to measure the generic copying fallback.
 struct Fallback<S>(S);
 impl<S: Source> Source for Fallback<S> {
     type Error = S::Error;

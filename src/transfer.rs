@@ -85,6 +85,12 @@ impl<S> Take<S> {
 }
 impl<S: Source> Source for Take<S> {
     type Error = S::Error;
+    fn buffered_bytes(&self) -> impl Presence<&[u8]> {
+        LimitedBytes {
+            bytes: self.inner.buffered_bytes(),
+            limit: self.remaining,
+        }
+    }
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         if self.remaining == 0 {
             return Ok(&[]);
@@ -105,5 +111,19 @@ impl<S: Source> Source for Take<S> {
         let count = crate::read(&mut self.inner, &mut destination[..len])?;
         self.remaining -= count as u64;
         Ok(count)
+    }
+}
+
+// Preserve absence as well as presence through a bounded source view.
+struct LimitedBytes<P> {
+    bytes: P,
+    limit: u64,
+}
+impl<'a, P: Presence<&'a [u8]>> Presence<&'a [u8]> for LimitedBytes<P> {
+    const PRESENT: bool = P::PRESENT;
+    fn into_value(self) -> &'a [u8] {
+        let bytes = self.bytes.into_value();
+        let limit = usize::try_from(self.limit).unwrap_or(usize::MAX);
+        &bytes[..bytes.len().min(limit)]
     }
 }

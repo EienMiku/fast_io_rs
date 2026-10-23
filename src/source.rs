@@ -9,6 +9,15 @@ pub trait Source {
     /// Consume at most the length of the last exposed slice.
     fn consume(&mut self, count: usize);
 
+    /// Optionally expose already buffered bytes without performing I/O.
+    ///
+    /// These must be the next bytes in the input stream and may be consumed with
+    /// `consume`. An empty slice here does not imply EOF. This lets exact reads
+    /// fitting the current buffer avoid entering the refill path.
+    fn buffered_bytes(&self) -> impl Presence<&[u8]> {
+        missing()
+    }
+
     /// Optionally read directly into the destination, consuming the bytes read.
     ///
     /// This must read the same ordered stream as `fill_buf`/`consume`, including
@@ -29,6 +38,10 @@ impl<S: Source + ?Sized> Source for &mut S {
         S::consume(self, count);
     }
     #[inline]
+    fn buffered_bytes(&self) -> impl Presence<&[u8]> {
+        S::buffered_bytes(self)
+    }
+    #[inline]
     fn read_into(&mut self, destination: &mut [u8]) -> impl Presence<Result<usize, Self::Error>> {
         S::read_into(self, destination)
     }
@@ -42,6 +55,10 @@ impl Source for &[u8] {
     #[inline]
     fn consume(&mut self, count: usize) {
         *self = &self[count..];
+    }
+    #[inline]
+    fn buffered_bytes(&self) -> impl Presence<&[u8]> {
+        *self
     }
 }
 
@@ -77,7 +94,27 @@ pub fn read<S: Source + ?Sized>(source: &mut S, destination: &mut [u8]) -> Resul
 /// may also have been modified by the source's direct-read hook.
 /// `UnexpectedEof` reports the destination size and the prefix length.
 /// An empty destination succeeds without touching the source.
+#[inline]
 pub fn read_exact<S: Source + ?Sized>(
+    source: &mut S,
+    destination: &mut [u8],
+) -> Result<(), ReadError<S::Error>> {
+    if destination.is_empty() {
+        return Ok(());
+    }
+    if const { crate::provided(S::buffered_bytes) } {
+        let cached = source.buffered_bytes().into_value();
+        if destination.len() <= cached.len() {
+            destination.copy_from_slice(&cached[..destination.len()]);
+            source.consume(destination.len());
+            return Ok(());
+        }
+    }
+    read_exact_slow(source, destination)
+}
+
+// Keep the refill/error loop out of the already-buffered exact-read fast path.
+fn read_exact_slow<S: Source + ?Sized>(
     source: &mut S,
     destination: &mut [u8],
 ) -> Result<(), ReadError<S::Error>> {
