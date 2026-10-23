@@ -82,9 +82,9 @@ Use `#[encode(crate = "renamed_dependency")]` if the crate has been renamed.
 Raw identifiers use their plain field name in placeholders (`r#type` becomes `{type}`).
 Enums support per-variant format/transparent attributes. They advertise reserved
 output when all their variants' formatted fields support it; otherwise streaming
-and shared-batch output remain available. Empty enums, unions and format
-width/precision specifiers inside placeholders currently require a manual
-implementation. Explicit fields also accept `:x`, `:X`, `:b`, and `:o` for
+and shared-batch output remain available. Empty enums, unions, field widths and
+dynamic precision currently require a manual implementation. Explicit fields
+also accept `:x`, `:X`, `:b`, and `:o` for
 unsigned integers, optionally with `#` for a prefix, and `:?` for `Debug`:
 
 ```rust
@@ -100,6 +100,9 @@ Radix fields retain reserved output; Debug fields use the streaming fallback
 and only require `Debug`, without a separate `Encode` implementation.
 Uppercase hexadecimal prefixes follow `hex(...).uppercase().prefixed()` and
 produce `0X`. Implicit field indices are not supported.
+With `float`, `{value:.2}` uses fixed-point output and `{value:.3e}` /
+`{value:.3E}` use scientific notation. The precision is a literal in
+`0..=65535`; these reuse the reserved float formatters.
 
 With `std`, `fast_io::println!("answer=", 42)?` locks stdout for the operation;
 `eprint!` / `eprintln!` target stderr. With `alloc`, `format_bytes!` returns a Vec,
@@ -120,6 +123,9 @@ are parsed in place. Primitive integers accumulate across buffers without token
 scratch storage, including explicit bases from 2 through 36; other parsers use
 bounded scratch for split tokens. Decimal integers also combine validation,
 conversion and boundary detection when a complete valid token is cached.
+With `alloc`, `String` and `Vec<u8>` also accumulate split tokens directly into
+their result, so a large token limit does not require a correspondingly large
+stack buffer. String validates UTF-8 after the complete token is read.
 Oversized and invalid tokens are consumed so later scans can recover.
 Use `scanner.scan_radix::<u64>(16)` for an explicit base from 2 through 36
 (no `0x` prefix), or `scan_with(parser)` to supply a parser with captured context.

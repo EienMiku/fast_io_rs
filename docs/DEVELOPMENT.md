@@ -12,6 +12,8 @@
   into itself. Adjacent scratch regions merge into one fragment.
 - Decimal output checks its output span once and fills complete pairs with a
   reverse chunk iterator; an odd leading digit uses the iterator's remainder.
+  Values fitting u32 use a narrow converter. Larger u64 values split into
+  eight-digit chunks, with zero-padded tails converted using u32 arithmetic.
 - `Arguments` is a statically typed list used by print macros. Its constant
   `RESERVABLE` propagates field capabilities through composite formatters,
   including joins and optional values.
@@ -55,7 +57,10 @@
   detection, avoiding a separate whitespace pass on valid contiguous tokens.
   Missing cache, errors, oversized tokens and buffer boundaries fall back to
   the existing framing/recovery path. Signed values accumulate negatively when
-  needed so their minimum value remains representable.
+  needed so their minimum value remains representable. The speculative cached
+  path examines at most N+1 token bytes, even for arbitrarily long leading zeros.
+  With alloc, String/Vec stream split tokens into their result instead of an
+  N-byte scratch array; String validates UTF-8 once the token is complete.
 - `Reader` is the minimal raw-device input trait. `BufferedInput<R, N>` adds
   fixed-capacity buffering without std/alloc, exposes `Source`, and bypasses an
   empty buffer for large direct reads. `Io<R>` adapts std readers and retries
@@ -86,13 +91,16 @@ The derive supports per-type/per-variant layouts, skipping fields, transparent
 wrappers, generics and renamed dependencies. Adjacent literal text is merged
 at expansion time to reduce fragments and streaming writes. Structs propagate reserve hooks;
 enums combine their alternatives' capabilities through a balanced sum type.
-Every variant must support reservation for the enum to advertise it. Arbitrary format
-width/precision specifiers and empty enums are not supported. Explicit field
+Every variant must support reservation for the enum to advertise it. Arbitrary
+field widths, dynamic precision and empty enums are not supported. Explicit field
 formats `x`, `X`, `b`, `o` (optionally prefixed with `#`) use the unsigned radix
 wrappers; `?` uses Debug. Bounds follow the chosen formatter, so a Debug-only
 field need not implement Encode. Radix layouts retain reserved output; Debug
 layouts use streaming/batching. Uppercase hexadecimal uses `0X` consistently
 with the direct wrapper. Unsupported specifiers are compile errors.
+With float enabled, `.N`, `.Ne`, and `.NE` use the fixed/scientific formatters
+with a u16 literal precision. They retain reserved output and add only the Float
+bound to the affected field; unused float support does not affect no_std builds.
 
 ## Important contracts
 

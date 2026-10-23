@@ -82,6 +82,56 @@ Safe checked Rust and the C++ upstream also offer different failure contracts.
 
 ### Latest complete comparison
 
+The integrated implementation at `941f0ec` was measured with a clean working
+tree in 15 rotated samples, with no other agent compiling or benchmarking.
+Each memory sample formats 2,000,000 records; each scan sample parses 1,000,000
+tokens. Both memory paths match the independent Python reference for all 1024
+records (106,848 bytes), and every timed count/checksum is verified.
+
+| Workload | C++ ns/unit | Rust ns/unit | Rust / C++ |
+| --- | ---: | ---: | ---: |
+| Reused fixed buffer | 30.54 | 34.93 | 1.14 |
+| Reused growing container | 44.00 | 37.36 | 0.85 |
+| Full-width unsigned decimal | 13.63 | 15.89 | 1.17 |
+| Unsigned, 8-bit range | 9.06 | 11.04 | 1.22 |
+| Unsigned, 32-bit range | 11.49 | 10.48 | 0.91 |
+| Full-width signed decimal | 13.91 | 12.84 | 0.92 |
+| Signed, 8-bit range | 9.94 | 8.81 | 0.89 |
+| Signed, 32-bit range | 11.51 | 9.93 | 0.86 |
+
+Lower is better. Memory units are records; scan units are tokens. Short and
+medium-range numbers are still parsed into u64/i64 in both languages, so these
+rows vary token length rather than the destination integer type. Signed data
+include both signs and i64::MIN; checksum addition wraps at 64 bits.
+
+These eight local workloads are within about 22% of the corresponding upstream
+median; this is not a guarantee for all fast_io features, input distributions,
+devices or targets. The machine remains unisolated and ranges overlap. The fixed
+buffer, full-width unsigned and short unsigned medians still favor C++.
+[Raw samples, ranges, binary hashes and exact build commands](benchmarks/upstream-integrated-2026-10-24.json)
+are retained. Reproduce this expanded run with:
+
+```text
+python tools/compare_upstream.py --upstream <external-checkout> --samples 15 --modes slice grow scan scan-u8 scan-u32 scan-i64 scan-i8 scan-i32
+```
+
+The retained changes combine cached numeric conversion and delimiter detection,
+avoiding the separate token-boundary pass for valid contiguous integers. Missing
+cache, split tokens, EOF without a delimiter and errors use the original framing
+path. Signed and unsigned parsers preserve error ordering, token limits and
+recovery. Speculative conversion examines at most N+1 token bytes.
+
+Output also splits large u64 values into eight-digit chunks, using u32 pair
+conversion for their tails. Independent 15-sample before/after runs measured
+fixed-buffer medians of 46.95 to 40.17 ns/record for mixed names, and 44.23 to
+38.65 for one-byte names. Same-run C++ medians were 37.09 and 35.88 respectively.
+The corresponding [mixed-name](benchmarks/upstream-block8-2026-10-24.json) and
+[one-byte-name](benchmarks/upstream-block8-short-2026-10-24.json) reports retain
+the exact older executable hash. Growing-container results varied; these runs
+do not support a universal speedup claim.
+
+### Earlier complete comparison
+
 After the retained decimal input/output changes, the same three programs ran
 in 15 rotated samples at Rust commit `7340dab`. The saved original Rust executable
 is from `0c3358d`; the driver workloads are unchanged. Each memory sample formats
@@ -156,7 +206,7 @@ each of the eight positions, including non-ASCII bytes and invalid controls.
 Word-at-a-time whitespace searches were also tried separately from decimal
 conversion. Broader `scan-u8`/`scan-u32`/`scan` comparisons found regressions on
 short tokens despite improvements on full-width tokens. Those framing changes
-were not retained; the shipping scanner keeps its scalar whitespace search.
+were not retained; the generic scanner fallback keeps its scalar whitespace search.
 The expanded workloads remain available to evaluate future changes.
 
 ### Decimal output iteration
@@ -188,3 +238,9 @@ the same underlying formatting/scanning entry points without hosted I/O.
 These results therefore do not cover upstream native file, socket or pipe I/O.
 The limitation is a build observation for this pinned compiler/platform, not a
 claim that the library cannot build in its intended custom compiler environment.
+
+The normal public `<fast_io_device.h>` and `<fast_io_hosted.h>` includes were
+also checked with a minimal `int main(){}` program. Both reach the same socket
+header; `-fno-exceptions` and `-DFAST_IO_DISABLE_FLOATING_POINT` do not avoid the
+syntax error. The upstream checkout remains unmodified. No private-header
+assembly or standard-library file substitute is used to imply native parity.
