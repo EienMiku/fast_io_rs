@@ -10,6 +10,16 @@ pub trait Sink {
 
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error>;
 
+    /// Optionally specialize a complete print operation for this device.
+    ///
+    /// Memory destinations can bypass scatter planning and write directly.
+    fn write_arguments<A: crate::arguments::Arguments>(
+        &mut self,
+        _arguments: &A,
+    ) -> impl Presence<Result<(), Self::Error>> {
+        missing()
+    }
+
     /// Optionally write all fragments in order, with the same error contract.
     ///
     /// The fragments remain borrowed only for this call. Devices can implement
@@ -28,6 +38,13 @@ impl<S: Sink + ?Sized> Sink for &mut S {
     #[inline]
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
         S::write_all(self, bytes)
+    }
+    #[inline]
+    fn write_arguments<A: crate::arguments::Arguments>(
+        &mut self,
+        arguments: &A,
+    ) -> impl Presence<Result<(), Self::Error>> {
+        S::write_arguments(self, arguments)
     }
     #[inline]
     fn write_scatter(&mut self, fragments: &[&[u8]]) -> impl Presence<Result<(), Self::Error>> {

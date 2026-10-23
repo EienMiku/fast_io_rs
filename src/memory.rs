@@ -51,6 +51,13 @@ impl<'a> SliceSink<'a> {
 }
 impl Sink for SliceSink<'_> {
     type Error = CapacityError;
+    #[inline]
+    fn write_arguments<A: crate::arguments::Arguments>(
+        &mut self,
+        arguments: &A,
+    ) -> impl Presence<Result<(), Self::Error>> {
+        arguments.stream(self)
+    }
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
         if bytes.len() > self.remaining() {
             return Err(CapacityError {
@@ -83,6 +90,13 @@ impl Sink for SliceSink<'_> {
 #[cfg(feature = "alloc")]
 impl Sink for alloc::vec::Vec<u8> {
     type Error = core::convert::Infallible;
+    #[inline]
+    fn write_arguments<A: crate::arguments::Arguments>(
+        &mut self,
+        arguments: &A,
+    ) -> impl Presence<Result<(), Self::Error>> {
+        arguments.stream(self)
+    }
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
         self.extend_from_slice(bytes);
         Ok(())

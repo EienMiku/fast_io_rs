@@ -17,12 +17,17 @@ pub struct Cons<'a, H: ?Sized, T> {
 /// A heterogeneous sequence whose elements can be statically dispatched.
 #[doc(hidden)]
 pub trait Arguments {
+    fn stream<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error>;
     fn append<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
         &'v self,
         batch: &mut Batch<'_, 'v, S, B, P>,
     ) -> Result<(), S::Error>;
 }
 impl Arguments for End {
+    #[inline]
+    fn stream<S: Sink + ?Sized>(&self, _sink: &mut S) -> Result<(), S::Error> {
+        Ok(())
+    }
     fn append<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
         &'v self,
         _batch: &mut Batch<'_, 'v, S, B, P>,
@@ -31,6 +36,11 @@ impl Arguments for End {
     }
 }
 impl<H: Encode + ?Sized, T: Arguments> Arguments for Cons<'_, H, T> {
+    #[inline]
+    fn stream<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
+        crate::write(sink, self.head)?;
+        self.tail.stream(sink)
+    }
     #[inline]
     fn append<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
         &'v self,
@@ -48,6 +58,10 @@ pub fn write_arguments<S: Sink + ?Sized, A: Arguments>(
     sink: &mut S,
     arguments: &A,
 ) -> Result<(), S::Error> {
+    if const { crate::provided2(S::write_arguments::<A>) } {
+        use crate::Presence;
+        return sink.write_arguments(arguments).into_value();
+    }
     let mut batch = Batch::<S>::new(sink);
     arguments.append(&mut batch)?;
     batch.finish()
