@@ -30,7 +30,8 @@ and reproducible formatting/scanning microbenchmarks.
 
 The derive supports per-type/per-variant layouts, skipping fields, transparent
 wrappers, generics and renamed dependencies. Structs propagate reserve hooks;
-enums currently expose streaming and batch hooks only. Arbitrary format
+enums combine their alternatives' capabilities through a balanced sum type.
+Every variant must support reservation for the enum to advertise it. Arbitrary format
 specifiers and empty enums are not supported.
 
 ## Important contracts
@@ -72,7 +73,6 @@ See [PERFORMANCE.md](PERFORMANCE.md) for measured snapshots and limitations.
 
 - Validate device paths with a real file/pipe benchmark before adding native
   handles or more complex OS specialization.
-- Investigate enum reserve propagation if measurements justify it.
 - Improve usability and document sharp edges before broadening the API further.
 - Native handles, async I/O, locale rules and additional encodings remain outside
   the implemented scope. The crate is unpublished and its API remains provisional.

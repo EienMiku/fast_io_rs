@@ -62,6 +62,10 @@ enum Event<'a, T> {
 
 #[test]
 fn derived_enum_variants_preserve_static_field_dispatch() {
+    assert!(const { fast_io::provided(Event::<u8>::reserve_size) });
+    assert!(const { fast_io::provided2(Event::<u8>::encode_reserved) });
+    assert!(!const { fast_io::provided(Event::<Streaming>::reserve_size) });
+    assert!(!const { fast_io::provided2(Event::<Streaming>::encode_reserved) });
     let mut storage = [0; 256];
     let mut output = fast_io::SliceSink::new(&mut storage);
     fast_io::print!(&mut output;
@@ -75,4 +79,7 @@ fn derived_enum_variants_preserve_static_field_dispatch() {
         output.as_bytes(),
         b"Event::Ready Event::Value { message: x, count: 1 } <4> plain Event::Hidden()"
     );
+    output.clear();
+    fast_io::print!(&mut output; Event::Raw(Streaming)).unwrap();
+    assert_eq!(output.as_bytes(), b"<stream>");
 }

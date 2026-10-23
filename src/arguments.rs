@@ -141,6 +141,23 @@ impl<A: Arguments> Presence<usize> for ReservedWrite<'_, A> {
     }
 }
 
+/// A derived enum's alternatives, present only if every branch is present.
+#[doc(hidden)]
+#[derive(Debug)]
+pub enum ReservedChoice<L, R> {
+    Left(L),
+    Right(R),
+}
+impl<L: Presence<usize>, R: Presence<usize>> Presence<usize> for ReservedChoice<L, R> {
+    const PRESENT: bool = L::PRESENT && R::PRESENT;
+    fn into_value(self) -> usize {
+        match self {
+            Self::Left(value) => value.into_value(),
+            Self::Right(value) => value.into_value(),
+        }
+    }
+}
+
 /// Format an argument sequence using the default bounded batch.
 #[doc(hidden)]
 #[inline]

@@ -73,9 +73,10 @@ reserved output exactly when all formatted fields support it. It supports named
 and tuple structs, `{field}` / `{0}` placeholders, `{{` / `}}` escapes,
 `#[encode(skip)]` fields and `#[encode(transparent)]` single-field wrappers.
 Use `#[encode(crate = "renamed_dependency")]` if the crate has been renamed.
-Enums support streaming and shared-batch output, with per-variant format/transparent
-attributes. Enum-wide reserved output, empty enums, unions and format specifiers
-inside placeholders currently require a manual implementation.
+Enums support per-variant format/transparent attributes. They advertise reserved
+output when all their variants' formatted fields support it; otherwise streaming
+and shared-batch output remain available. Empty enums, unions and format
+specifiers inside placeholders currently require a manual implementation.
 
 With `std`, `fast_io::println!("answer=", 42)?` locks stdout for the operation;
 `eprint!` / `eprintln!` target stderr. With `alloc`, `format_bytes!` returns a Vec,

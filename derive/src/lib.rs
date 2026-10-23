@@ -320,7 +320,9 @@ fn expand_enum(
     let mut generics = input.generics.clone();
     let mut stream_arms = Vec::new();
     let mut batch_arms = Vec::new();
-    for variant in &data.variants {
+    let mut size_arms = Vec::new();
+    let mut reserved_arms = Vec::new();
+    for (variant_index, variant) in data.variants.iter().enumerate() {
         let variant_name = &variant.ident;
         let variant_cfg = config(&variant.attrs)?;
         if variant_cfg.path.is_some() {
@@ -422,8 +424,36 @@ fn expand_enum(
                 Some(quote!(batch.push(#binding)?;))
             }
         });
+        // Construct direct field borrows. Taking &binding would borrow a local
+        // pattern variable and prevent returning the deferred capability.
+        let mut arguments = quote!(#path::arguments::End);
+        for part in parts.iter().rev() {
+            let head = match part {
+                Part::Text(text) if text.is_empty() => continue,
+                Part::Text(text) => {
+                    let literal = LitStr::new(text, Span::call_site());
+                    quote!(#literal)
+                }
+                Part::Field(index) => bindings[*index].clone(),
+            };
+            arguments = quote!(#path::arguments::Cons { head: #head, tail: #arguments });
+        }
+        let size = reserved_choice(
+            variant_index,
+            data.variants.len(),
+            quote!(#path::arguments::ReservedSize(#arguments)),
+            path,
+        );
+        let reserved = reserved_choice(
+            variant_index,
+            data.variants.len(),
+            quote!(#path::arguments::ReservedWrite(#arguments, output)),
+            path,
+        );
         stream_arms.push(quote!(#pattern => { #(#stream)* ::core::result::Result::Ok(()) }));
         batch_arms.push(quote!(#pattern => { #(#batch)* ::core::result::Result::Ok(()) }));
+        size_arms.push(quote!(#pattern => #size));
+        reserved_arms.push(quote!(#pattern => #reserved));
     }
     let mut used: BTreeSet<_> = input
         .generics
@@ -448,6 +478,12 @@ fn expand_enum(
             {
                 match self { #(#stream_arms),* }
             }
+            fn reserve_size(&self) -> impl #path::Presence<usize> {
+                match self { #(#size_arms),* }
+            }
+            fn encode_reserved(&self, output: &mut [u8]) -> impl #path::Presence<usize> {
+                match self { #(#reserved_arms),* }
+            }
             fn encode_batch<#lifetime, #sink: #path::Sink + ?Sized, const #bytes: usize, const #pieces: usize>(
                 &#lifetime self, batch: &mut #path::Batch<'_, #lifetime, #sink, #bytes, #pieces>
             ) -> impl #path::Presence<::core::result::Result<(), #sink::Error>> {
@@ -455,4 +491,25 @@ fn expand_enum(
             }
         }
     })
+}
+
+// A balanced sum type unifies different variants' opaque return types while
+// deriving the overall Presence constant from all alternatives.
+fn reserved_choice(
+    index: usize,
+    count: usize,
+    value: proc_macro2::TokenStream,
+    path: &syn::Path,
+) -> proc_macro2::TokenStream {
+    if count == 1 {
+        return value;
+    }
+    let split = count.div_ceil(2);
+    if index < split {
+        let inner = reserved_choice(index, split, value, path);
+        quote!(#path::arguments::ReservedChoice::Left(#inner))
+    } else {
+        let inner = reserved_choice(index - split, count - split, value, path);
+        quote!(#path::arguments::ReservedChoice::Right(#inner))
+    }
 }
