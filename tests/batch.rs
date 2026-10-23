@@ -85,6 +85,16 @@ fn compositions_flatten_into_the_outer_batch() {
     }
     assert!(reserved(&fast_io::concat!(1u32, "x")));
     assert!(!reserved(&fast_io::concat!(Stream)));
+    assert!(reserved(&Box::new(123u32)));
+    assert!(!reserved(&Box::new(Stream)));
+    let boxed: Box<str> = "box".into();
+    let shared: std::rc::Rc<str> = "rc".into();
+    let borrowed: std::borrow::Cow<'_, str> = std::borrow::Cow::Borrowed("cow");
+    let mut mutable = 9u8;
+    assert_eq!(
+        fast_io::format_bytes!(boxed, shared, borrowed, &mut mutable),
+        b"boxrccow9"
+    );
     assert!(reserved(&Some(123u32)));
     assert!(!reserved(&Some(Stream)));
     assert!(reserved(&fast_io::join(&[1u8, 2, 3], ",")));

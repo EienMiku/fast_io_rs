@@ -33,6 +33,7 @@ out.flush()?;
 - Borrowed fragments and generated scratch data combined into bounded scatter batches.
 - Nested `concat!` and `join` values flatten into the outer batch.
 - Compositions, joins and optional values propagate their fields' reserve support.
+- References, `Box`, `Rc`, `Arc` and `Cow` preserve inner formatting capabilities.
 - Fixed-capacity output, growable byte vectors, std writers and persistent buffering.
 - `Display`, `Debug`, and `format_args!` interoperability.
 - Bounded, whitespace-delimited scanning with integer overflow checking and buffered input.

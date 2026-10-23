@@ -43,31 +43,57 @@ pub trait Encode {
     }
 }
 
-impl<T: Encode + ?Sized> Encode for &T {
-    #[inline]
-    fn encode<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
-        T::encode(self, sink)
-    }
-    #[inline]
-    fn borrowed_bytes(&self) -> impl Presence<&[u8]> {
-        T::borrowed_bytes(self)
-    }
-    #[inline]
-    fn reserve_size(&self) -> impl Presence<usize> {
-        T::reserve_size(self)
-    }
-    #[inline]
-    fn encode_reserved(&self, buffer: &mut [u8]) -> impl Presence<usize> {
-        T::encode_reserved(self, buffer)
-    }
+// Keep the opaque return types intact so wrappers preserve optional hooks.
+macro_rules! forward_encode {
+    () => {
+        #[inline]
+        fn encode<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
+            T::encode(self, sink)
+        }
+        #[inline]
+        fn borrowed_bytes(&self) -> impl Presence<&[u8]> {
+            T::borrowed_bytes(self)
+        }
+        #[inline]
+        fn reserve_size(&self) -> impl Presence<usize> {
+            T::reserve_size(self)
+        }
+        #[inline]
+        fn encode_reserved(&self, buffer: &mut [u8]) -> impl Presence<usize> {
+            T::encode_reserved(self, buffer)
+        }
 
-    #[inline]
-    fn encode_batch<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
-        &'v self,
-        batch: &mut crate::Batch<'_, 'v, S, B, P>,
-    ) -> impl Presence<Result<(), S::Error>> {
-        T::encode_batch(self, batch)
-    }
+        #[inline]
+        fn encode_batch<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
+            &'v self,
+            batch: &mut crate::Batch<'_, 'v, S, B, P>,
+        ) -> impl Presence<Result<(), S::Error>> {
+            T::encode_batch(self, batch)
+        }
+    };
+}
+
+impl<T: Encode + ?Sized> Encode for &T {
+    forward_encode!();
+}
+impl<T: Encode + ?Sized> Encode for &mut T {
+    forward_encode!();
+}
+#[cfg(feature = "alloc")]
+impl<T: Encode + ?Sized> Encode for alloc::boxed::Box<T> {
+    forward_encode!();
+}
+#[cfg(feature = "alloc")]
+impl<T: Encode + ?Sized> Encode for alloc::rc::Rc<T> {
+    forward_encode!();
+}
+#[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
+impl<T: Encode + ?Sized> Encode for alloc::sync::Arc<T> {
+    forward_encode!();
+}
+#[cfg(feature = "alloc")]
+impl<T: Encode + alloc::borrow::ToOwned + ?Sized> Encode for alloc::borrow::Cow<'_, T> {
+    forward_encode!();
 }
 
 /// Format one value, using borrowed or small reserved output when available.
