@@ -25,6 +25,11 @@ impl<R: Read> Input<R> {
     pub fn get_ref(&self) -> &R {
         self.inner.get_ref()
     }
+    /// Reuse an existing BufReader, including its unread prefetched bytes.
+    /// No extra buffer is allocated around it.
+    pub fn from_buffered(reader: BufReader<R>) -> Self {
+        Self { inner: reader }
+    }
     pub fn into_inner(self) -> BufReader<R> {
         self.inner
     }

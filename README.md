@@ -114,6 +114,11 @@ returning an error, allowing the next call to recover.
 buffer. Wrap a source with `take(source, byte_limit)` to read or copy a bounded
 payload without consuming the following data. Copying does not flush the sink.
 
+`read(&mut source, &mut bytes)` copies one available chunk; `read_exact` fills
+the destination across chunks or reports a truncated input. These work without
+`std` or allocation. With `std`, `Input::from_buffered(reader)` reuses an existing
+`BufReader` and preserves unread prefetched bytes.
+
 ## Features and checks
 
 Default features: `std`, `float`. `std` enables `alloc`.

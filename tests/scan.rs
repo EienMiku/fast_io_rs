@@ -119,6 +119,14 @@ fn buffered_input_retries_interrupted_reads() {
     assert_eq!(scanner.require::<u32>().unwrap(), 12345);
     assert_eq!(scanner.require::<i8>().unwrap(), -9);
     assert!(scanner.scan::<u8>().unwrap().is_none());
+
+    // Retain prefetched bytes when switching an existing std reader to fast_io.
+    use std::io::BufRead;
+    let mut buffered = std::io::BufReader::with_capacity(8, b"skip 42".as_slice());
+    assert_eq!(buffered.fill_buf().unwrap(), b"skip 42");
+    buffered.consume(5);
+    let mut scanner = Scanner::new(fast_io::Input::from_buffered(buffered));
+    assert_eq!(scanner.require::<u8>().unwrap(), 42);
 }
 
 #[test]
@@ -154,6 +162,50 @@ fn binary_endian_values_cross_source_boundaries() {
             expected: 4,
             actual: 1
         })
+    ));
+}
+
+#[test]
+fn raw_reads_fill_across_buffers_and_preserve_unread_data() {
+    use fast_io::{ReadError, read, read_exact};
+    for size in 1..=8 {
+        let mut input = Chunks {
+            bytes: b"headpayloadtail",
+            size,
+        };
+        let mut header = [0; 4];
+        read_exact(&mut input, &mut header).unwrap();
+        assert_eq!(&header, b"head");
+        let mut payload = [0; 7];
+        read_exact(&mut input, &mut payload).unwrap();
+        assert_eq!(&payload, b"payload");
+        assert_eq!(input.bytes, b"tail");
+        let mut too_large = [b'?'; 6];
+        assert!(matches!(
+            read_exact(&mut input, &mut too_large),
+            Err(ReadError::UnexpectedEof {
+                expected: 6,
+                actual: 4
+            })
+        ));
+        assert_eq!(&too_large, b"tail??");
+        assert_eq!(read(&mut input, &mut too_large).unwrap(), 0);
+    }
+    struct Fails;
+    impl Source for Fails {
+        type Error = ();
+        fn fill_buf(&mut self) -> Result<&[u8], ()> {
+            Err(())
+        }
+        fn consume(&mut self, _: usize) {
+            panic!("failed read must not consume");
+        }
+    }
+    assert_eq!(read(&mut Fails, &mut []).unwrap(), 0);
+    read_exact(&mut Fails, &mut []).unwrap();
+    assert!(matches!(
+        read_exact(&mut Fails, &mut [0]),
+        Err(ReadError::Source(()))
     ));
 }
 

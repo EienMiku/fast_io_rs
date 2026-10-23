@@ -48,7 +48,7 @@ pub use radix::{Radix, bin, hex, oct, radix};
 pub use record::{RecordError, read_line, read_record};
 pub use scan::{ParseError, Scan, ScanError, ScanRadix, Scanner};
 pub use sink::{Sink, write_scatter};
-pub use source::Source;
+pub use source::{Source, read, read_exact};
 #[cfg(feature = "std")]
 pub use std_input::Input;
 #[cfg(feature = "std")]
