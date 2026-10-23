@@ -60,6 +60,27 @@ PGO or explicit LTO. Compiler/LLVM versions and optimization pipelines may
 differ: this compares these library/compiler combinations, not language speed.
 Safe checked Rust and the C++ upstream also offer different failure contracts.
 
+## First measured comparison
+
+On 2026-10-24 (UTC+8), Windows x86-64 / Intel Core i7-11800H, using clang 22.1.6
+and stable Rust 1.99.1 (LLVM 23.1.1), the default nine-sample run at Rust commit
+`0c3358d` produced the following. Lower is better; memory units are records and
+scan units are tokens.
+
+| Workload | C++ median ns/unit | Rust median ns/unit | C++ range | Rust range |
+| --- | ---: | ---: | ---: | ---: |
+| Reused fixed buffer | 33.02 | 43.71 | 28.29–42.10 | 37.89–59.53 |
+| Reused growing container | 44.31 | 45.22 | 39.08–50.57 | 43.30–93.64 |
+| Unsigned decimal scanning | 15.14 | 33.62 | 12.46–17.16 | 30.14–46.77 |
+
+The growing-container results are close relative to the observed variation.
+The fixed-buffer median favors C++; scanning shows the clearest gap, with Rust
+taking about 2.22 times as long in these paired samples. This is a baseline for
+further investigation, not evidence of overall fast_io parity or a language-wide
+performance difference. The machine was not isolated and individual samples
+were noisy. [Raw samples and build metadata](benchmarks/upstream-baseline-2026-10-24.json)
+are retained so later improvements can be compared with the same workload.
+
 ## Current upstream build limitation
 
 At revision `7a6fa9b680de8355f9f743e0f8950492cf5a42f0`, including `fast_io.h`

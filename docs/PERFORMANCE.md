@@ -3,6 +3,11 @@
 These are paired, local microbenchmarks, not a claim of parity with C++ fast_io
 or a prediction of uncached disk, terminal, or network throughput.
 
+The separate [upstream comparison](UPSTREAM_BENCHMARK.md) now measures identical
+formatting and scanning workloads against a pinned C++ fast_io revision built
+with clang, including full byte verification and raw samples. Its first run
+shows a clear remaining gap in unsigned decimal scanning.
+
 ## Environment and reproduction
 
 - Windows x86-64, Intel Core i7-11800H @ 2.30 GHz.
@@ -240,7 +245,7 @@ show a reliable benefit and were not retained.
 - Unbuffered files and non-loopback sockets; varied pipe capacities and receivers.
 - Formatting adapters and longer/more deeply nested derived types.
 - Small source buffers, near-limit tokens and floating-point inputs.
-- Allocation counts, generated machine code, and comparable C++ fast_io cases.
+- Allocation counts, generated machine code, and C++ fast_io native-device cases.
 
 Benchmarks deliberately have no pass/fail speed thresholds. Correctness tests do
 not depend on wall-clock performance.

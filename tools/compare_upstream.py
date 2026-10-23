@@ -5,6 +5,7 @@ Pass an external upstream checkout; this script neither downloads nor edits it.
 See docs/UPSTREAM_BENCHMARK.md for the pinned revision and measurement contract.
 """
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -49,6 +50,7 @@ def repeated_total(values, count):
 
 
 def main():
+    started_at = datetime.now(timezone.utc).isoformat()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--upstream", type=Path, required=True)
     parser.add_argument("--allow-other-revision", action="store_true")
@@ -119,6 +121,8 @@ def main():
         medians[case] = statistics.median(timings)
         print(f"{case:14} {medians[case]:9.2f} ns/unit (range {min(timings):.2f}..{max(timings):.2f})")
     report = {
+        "started_at_utc": started_at,
+        "finished_at_utc": datetime.now(timezone.utc).isoformat(),
         "upstream_revision": revision,
         "rust_revision": run(["git", "rev-parse", "HEAD"]),
         "rust_worktree_status": run(["git", "status", "--porcelain"]),
