@@ -97,6 +97,8 @@ assert_eq!((a, b, c), (123, -45, true));
 `Scanner::<_, N>::with_capacity(source)` changes that limit. Contiguous tokens
 are parsed in place; tokens crossing source buffers use bounded scratch storage.
 Oversized and invalid tokens are consumed so later scans can recover.
+Use `scanner.scan_radix::<u64>(16)` for an explicit base from 2 through 36
+(no `0x` prefix), or `scan_with(parser)` to supply a parser with captured context.
 For a slice source, `scan_bytes()` and `scan_str()` return views into the original
 input that remain valid while later tokens are read.
 

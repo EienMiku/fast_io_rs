@@ -24,7 +24,8 @@ retain their own implementation and licensing.
 Presence and forwarding; slice/Vec/std sinks; integer/float/string formatting;
 radix, quoted strings and byte-width alignment; output batches and composition;
 persistent buffering; locked stdio and owned formatting macros; std fmt adapters;
-bounded scanning and borrowed slice tokens; bounded records/UTF-8 lines; buffered input; explicit-endian
+bounded scanning, parameterized parsers and base-2-through-36 integers; borrowed
+slice tokens; bounded records/UTF-8 lines; buffered input; explicit-endian
 binary primitive I/O; stream copy and byte-limited source views; UTF-16/UTF-8
 adapters; optional struct/enum derive; examples
 and reproducible formatting/scanning/file-output microbenchmarks.

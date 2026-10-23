@@ -46,7 +46,7 @@ pub use presence::{Presence, provided, provided0, provided2, provided3};
 pub use quoted::{Quoted, quoted};
 pub use radix::{Radix, bin, hex, oct, radix};
 pub use record::{RecordError, read_line, read_record};
-pub use scan::{ParseError, Scan, ScanError, Scanner};
+pub use scan::{ParseError, Scan, ScanError, ScanRadix, Scanner};
 pub use sink::{Sink, write_scatter};
 pub use source::Source;
 #[cfg(feature = "std")]

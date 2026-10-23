@@ -6,6 +6,7 @@ use core::fmt;
 pub enum ParseError {
     Empty,
     InvalidDigit { offset: usize },
+    InvalidRadix { radix: u32 },
     Overflow,
     InvalidUtf8,
     InvalidValue,
@@ -15,6 +16,7 @@ impl fmt::Display for ParseError {
         match self {
             Self::Empty => f.write_str("empty token"),
             Self::InvalidDigit { offset } => write!(f, "invalid digit at token byte {offset}"),
+            Self::InvalidRadix { radix } => write!(f, "base {radix} is outside 2..=36"),
             Self::Overflow => f.write_str("numeric value is out of range"),
             Self::InvalidUtf8 => f.write_str("token is not valid UTF-8"),
             Self::InvalidValue => f.write_str("invalid token value"),
@@ -53,6 +55,14 @@ impl<E: core::error::Error + 'static> core::error::Error for ScanError<E> {
 /// Parse one complete token. Implementations cannot retain a borrow of it.
 pub trait Scan: Sized {
     fn scan_token(token: &[u8]) -> Result<Self, ParseError>;
+}
+
+/// Integer parsing in an explicit base from 2 through 36.
+///
+/// ASCII letters are case-insensitive. A leading sign is allowed where it fits
+/// the target type. Prefixes such as 0x and separators such as _ are not accepted.
+pub trait ScanRadix: Sized {
+    fn scan_radix(token: &[u8], radix: u32) -> Result<Self, ParseError>;
 }
 
 /// ASCII-whitespace token scanner with a configurable maximum token length.
@@ -163,6 +173,35 @@ impl<S: Source, const N: usize> Scanner<S, N> {
     pub fn require<T: Scan>(&mut self) -> Result<T, ScanError<S::Error>> {
         self.scan()?.ok_or(ScanError::EndOfInput)
     }
+
+    /// Read one integer token in an explicit base; invalid bases do not consume input.
+    pub fn scan_radix<T: ScanRadix>(
+        &mut self,
+        radix: u32,
+    ) -> Result<Option<T>, ScanError<S::Error>> {
+        if !(2..=36).contains(&radix) {
+            return Err(ScanError::Parse(ParseError::InvalidRadix { radix }));
+        }
+        self.scan_with(|token| T::scan_radix(token, radix))
+    }
+}
+
+#[inline]
+fn radix_digit(byte: u8, radix: u32, offset: usize) -> Result<u8, ParseError> {
+    let digit = if byte.is_ascii_digit() {
+        byte - b'0'
+    } else {
+        let letter = (byte | 0x20).wrapping_sub(b'a');
+        if letter > 25 {
+            return Err(ParseError::InvalidDigit { offset });
+        }
+        letter + 10
+    };
+    if u32::from(digit) >= radix {
+        Err(ParseError::InvalidDigit { offset })
+    } else {
+        Ok(digit)
+    }
 }
 
 macro_rules! unsigned {
@@ -187,6 +226,22 @@ macro_rules! unsigned {
                     if !byte.is_ascii_digit() { return Err(ParseError::InvalidDigit { offset: start + index }); }
                     value = value.checked_mul(10)
                         .and_then(|n| n.checked_add((byte - b'0') as Self))
+                        .ok_or(ParseError::Overflow)?;
+                }
+                Ok(value)
+            }
+        }
+        impl ScanRadix for $ty {
+            fn scan_radix(token: &[u8], radix: u32) -> Result<Self, ParseError> {
+                if radix == 10 { return Self::scan_token(token); }
+                if !(2..=36).contains(&radix) { return Err(ParseError::InvalidRadix { radix }); }
+                let start = usize::from(token.first() == Some(&b'+'));
+                if token.len() == start { return Err(ParseError::Empty); }
+                let mut value: Self = 0;
+                for (index, &byte) in token[start..].iter().enumerate() {
+                    let digit = radix_digit(byte, radix, start + index)?;
+                    value = value.checked_mul(radix as Self)
+                        .and_then(|n| n.checked_add(digit as Self))
                         .ok_or(ParseError::Overflow)?;
                 }
                 Ok(value)
@@ -218,6 +273,26 @@ macro_rules! signed {
                         multiplied.checked_sub((byte - b'0') as Self)
                     } else {
                         multiplied.checked_add((byte - b'0') as Self)
+                    }.ok_or(ParseError::Overflow)?;
+                }
+                Ok(value)
+            }
+        }
+        impl ScanRadix for $ty {
+            fn scan_radix(token: &[u8], radix: u32) -> Result<Self, ParseError> {
+                if radix == 10 { return Self::scan_token(token); }
+                if !(2..=36).contains(&radix) { return Err(ParseError::InvalidRadix { radix }); }
+                let negative = token.first() == Some(&b'-');
+                let start = usize::from(negative || token.first() == Some(&b'+'));
+                if token.len() == start { return Err(ParseError::Empty); }
+                let mut value: Self = 0;
+                for (index, &byte) in token[start..].iter().enumerate() {
+                    let digit = radix_digit(byte, radix, start + index)?;
+                    let multiplied = value.checked_mul(radix as Self).ok_or(ParseError::Overflow)?;
+                    value = if negative {
+                        multiplied.checked_sub(digit as Self)
+                    } else {
+                        multiplied.checked_add(digit as Self)
                     }.ok_or(ParseError::Overflow)?;
                 }
                 Ok(value)

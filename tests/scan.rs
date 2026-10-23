@@ -1,4 +1,4 @@
-use fast_io::{ParseError, Scan, ScanError, Scanner, Source};
+use fast_io::{ParseError, Scan, ScanError, ScanRadix, Scanner, Source};
 
 struct Chunks<'a> {
     bytes: &'a [u8],
@@ -42,6 +42,16 @@ fn scan_across_boundaries_and_recover_after_bad_tokens() {
 
 #[test]
 fn parsing_bounds_and_utf8() {
+    assert_eq!(u8::scan_radix(b"fF", 16), Ok(255));
+    assert_eq!(i8::scan_radix(b"-80", 16), Ok(-128));
+    assert_eq!(i8::scan_radix(b"-81", 16), Err(ParseError::Overflow));
+    assert_eq!(
+        u8::scan_radix(b"fg", 16),
+        Err(ParseError::InvalidDigit { offset: 1 })
+    );
+    let mut bases = Scanner::new(b"101".as_slice());
+    assert!(bases.scan_radix::<u8>(1).is_err());
+    assert_eq!(bases.scan_radix::<u8>(2).unwrap(), Some(5));
     let mut customized = Scanner::new(b"yes".as_slice());
     let expected = String::from("yes");
     assert_eq!(
