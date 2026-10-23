@@ -106,18 +106,16 @@ macro_rules! decimal {
             } else {
                 value.ilog10() as usize + 1
             };
-            let mut cursor = len;
-            while value >= 100 {
+            // Check the whole region once; each iterator item is a complete
+            // output pair, including the leading pair for even digit counts.
+            let mut pairs = buffer[..len].rchunks_exact_mut(2);
+            for output in &mut pairs {
                 let pair = (value % 100) as usize;
                 value /= 100;
-                cursor -= 2;
-                buffer[cursor..cursor + 2].copy_from_slice(&PAIRS[2 * pair..2 * pair + 2]);
+                output.copy_from_slice(&PAIRS[2 * pair..2 * pair + 2]);
             }
-            if value < 10 {
-                buffer[0] = b'0' + value as u8;
-            } else {
-                let pair = value as usize;
-                buffer[..2].copy_from_slice(&PAIRS[2 * pair..2 * pair + 2]);
+            if let [first] = pairs.into_remainder() {
+                *first = b'0' + value as u8;
             }
             len
         }

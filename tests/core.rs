@@ -24,6 +24,21 @@ fn decimal_extremes_and_utf8() {
         write(&mut out, &n).unwrap();
         assert_eq!(out, n.to_string().as_bytes());
     }
+    let mut power = 1u128;
+    while let Some(next) = power.checked_mul(10) {
+        power = next;
+        for value in [power - 1, power, power + 1] {
+            let expected = value.to_string();
+            let mut output = Vec::new();
+            write(&mut output, &value).unwrap();
+            assert_eq!(output, expected.as_bytes());
+            if let Ok(narrow) = u64::try_from(value) {
+                output.clear();
+                write(&mut output, &narrow).unwrap();
+                assert_eq!(output, expected.as_bytes());
+            }
+        }
+    }
     let mut out = Vec::new();
     write(&mut out, "Rust / 中文 / ").unwrap();
     write(&mut out, &'🦀').unwrap();

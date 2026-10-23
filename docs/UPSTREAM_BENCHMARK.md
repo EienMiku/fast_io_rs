@@ -133,6 +133,23 @@ short tokens despite improvements on full-width tokens. Those framing changes
 were not retained; the shipping scanner keeps its scalar whitespace search.
 The expanded workloads remain available to evaluate future changes.
 
+### Decimal output iteration
+
+The decimal formatter now fills complete two-byte chunks of its checked output
+region. This removes per-iteration output slicing and the separate final-pair
+case while retaining safe Rust. Values around every representable decimal power
+are checked against standard formatting. A 15-sample paired run measured:
+
+| Memory destination | C++ ns/record | Rust before | Rust after |
+| --- | ---: | ---: | ---: |
+| Fixed buffer | 31.68 | 40.82 | 37.11 |
+| Growing container | 41.72 | 46.06 | 40.84 |
+
+The local median reductions were about 9% and 11%; the corresponding ranges
+still overlap. See the [raw output comparison](benchmarks/upstream-output-2026-10-24.json)
+for all samples, exact builds and baseline executable hash. These results do
+not show a universal improvement or parity with upstream on other workloads.
+
 ## Current upstream build limitation
 
 At revision `7a6fa9b680de8355f9f743e0f8950492cf5a42f0`, including `fast_io.h`
