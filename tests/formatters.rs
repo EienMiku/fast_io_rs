@@ -17,6 +17,9 @@ fn radix_and_json_string_escaping() {
 
 #[test]
 fn byte_padding_uses_reserved_and_streaming_paths() {
+    assert_eq!(fast_io::format_bytes!("n=", 7), b"n=7");
+    assert_eq!(fast_io::format_text!("n=", 7).unwrap(), "n=7");
+    assert!(fast_io::format_text!([0xffu8]).is_err());
     let mut output = Vec::new();
     fast_io::print!(&mut output;
         fast_io::pad(42u8, 5).fill(b'0'), "|",

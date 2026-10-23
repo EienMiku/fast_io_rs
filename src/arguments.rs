@@ -157,6 +157,36 @@ pub fn write_arguments<S: Sink + ?Sized, A: Arguments>(
     batch.finish()
 }
 
+#[cfg(feature = "std")]
+#[doc(hidden)]
+pub fn print_stdout<A: Arguments>(arguments: &A) -> std::io::Result<()> {
+    let stdout = std::io::stdout();
+    write_arguments(&mut crate::Io::new(stdout.lock()), arguments)
+}
+
+#[cfg(feature = "std")]
+#[doc(hidden)]
+pub fn print_stderr<A: Arguments>(arguments: &A) -> std::io::Result<()> {
+    let stderr = std::io::stderr();
+    write_arguments(&mut crate::Io::new(stderr.lock()), arguments)
+}
+
+#[cfg(feature = "alloc")]
+#[doc(hidden)]
+pub fn format_bytes<A: Arguments>(arguments: &A) -> alloc::vec::Vec<u8> {
+    let mut bytes = alloc::vec::Vec::new();
+    let Ok(()) = write_arguments(&mut bytes, arguments);
+    bytes
+}
+
+#[cfg(feature = "alloc")]
+#[doc(hidden)]
+pub fn format_text<A: Arguments>(
+    arguments: &A,
+) -> Result<alloc::string::String, alloc::string::FromUtf8Error> {
+    alloc::string::String::from_utf8(format_bytes(arguments))
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __fast_io_args {
@@ -189,6 +219,9 @@ macro_rules! print {
             &$crate::__fast_io_args!($($value),*)
         )
     };
+    ($($value:expr),* $(,)?) => {
+        $crate::arguments::print_stdout(&$crate::__fast_io_args!($($value),*))
+    };
 }
 
 /// Print values followed by one LF byte; does not flush the device.
@@ -196,5 +229,43 @@ macro_rules! print {
 macro_rules! println {
     ($sink:expr; $($value:expr),* $(,)?) => {
         $crate::print!($sink; $($value,)* "\n")
+    };
+    ($($value:expr),* $(,)?) => {
+        $crate::print!($($value,)* "\n")
+    };
+}
+
+/// Print to locked stderr, returning any output error. Requires std.
+#[cfg(feature = "std")]
+#[macro_export]
+macro_rules! eprint {
+    ($($value:expr),* $(,)?) => {
+        $crate::arguments::print_stderr(&$crate::__fast_io_args!($($value),*))
+    };
+}
+
+/// Print to locked stderr followed by LF. Requires std.
+#[cfg(feature = "std")]
+#[macro_export]
+macro_rules! eprintln {
+    ($($value:expr),* $(,)?) => { $crate::eprint!($($value,)* "\n") };
+}
+
+/// Format into an owned byte vector. Requires alloc.
+#[cfg(feature = "alloc")]
+#[macro_export]
+macro_rules! format_bytes {
+    ($($value:expr),* $(,)?) => {
+        $crate::arguments::format_bytes(&$crate::__fast_io_args!($($value),*))
+    };
+}
+
+/// Format into a UTF-8 String, returning an error for invalid raw bytes.
+/// Requires alloc. Byte-oriented formatters may legitimately produce non-UTF-8.
+#[cfg(feature = "alloc")]
+#[macro_export]
+macro_rules! format_text {
+    ($($value:expr),* $(,)?) => {
+        $crate::arguments::format_text(&$crate::__fast_io_args!($($value),*))
     };
 }
