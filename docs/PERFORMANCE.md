@@ -7,7 +7,8 @@ or a prediction of uncached disk, terminal, or network throughput.
 
 - Windows x86-64, Intel Core i7-11800H @ 2.30 GHz.
 - Rust 1.99.1 (`58cf8f9c3`, 2026-10-13), stable, default release profile.
-- Five samples for memory benchmarks, three for file output; report medians.
+- Five samples for the original memory benchmarks, nine for derived types,
+  three for file output; report medians.
 - Formatting runs alternate implementation order; the current scanner benchmark
   rotates it. Older scanner snapshots below used a fixed order without a warm-up.
 - No CPU affinity, fixed frequency, or isolated machine was used. Compare paired
@@ -18,6 +19,7 @@ cargo run --release --example throughput -- 500000
 cargo run --release --example scan_throughput -- 200000
 cargo run --release --example file_throughput -- 100000
 cargo run --release --example file_throughput -- 1000 16384
+cargo run --release --features derive --example derive_throughput -- 500000
 ```
 
 ## Formatting
@@ -38,6 +40,26 @@ The device's optional `write_arguments` hook now chooses a contiguous reservatio
 when every value supplies a usable bound. A scatter-capable device still receives
 borrowed fragments and generated scratch data. Formatting performance depends on
 the values, buffer size, device and available hooks.
+
+## Derived records
+
+The derive benchmark cycles through 1,024 prebuilt values with varying integers,
+booleans and three string lengths. It checks every output against `writeln!`,
+warms up all three paths, and rotates their measurement order across nine samples
+of 500,000 records each. Input allocation and construction are outside timing;
+formatting into the reused Vec and reading the next record are inside timing.
+The enum dataset mixes full records (75%) with compact records (25%). Both the
+standard and direct-argument baselines perform the same runtime variant match.
+
+Initial measurement with the `70f8938` implementation:
+
+| Dataset | std ns/record | direct arguments ns/record | derived Encode ns/record |
+| --- | ---: | ---: | ---: |
+| Struct | 80.56 | 43.69 | 51.07 |
+| Mixed enum | 69.55 | 35.01 | 50.50 |
+
+This exposes a measurable cost in these derived paths, particularly for enums.
+Compile-time capability selection alone does not prove identical generated code.
 
 ## Integer scanning
 
@@ -97,7 +119,7 @@ separate header/payload/trailer writes can defeat buffer coalescing.
 ## What remains to measure
 
 - Unbuffered file, pipe and socket output, including scatter batching.
-- Mixed-length strings, derived types and formatting adapters.
+- Formatting adapters and longer/more deeply nested derived types.
 - Small source buffers, near-limit tokens and floating-point inputs.
 - Allocation counts, generated machine code, and comparable C++ fast_io cases.
 

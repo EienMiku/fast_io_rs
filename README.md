@@ -130,9 +130,10 @@ cargo run --example custom --features derive
 cargo run --release --example throughput -- 500000
 cargo run --release --example scan_throughput -- 200000
 cargo run --release --example file_throughput -- 100000
+cargo run --release --features derive --example derive_throughput -- 500000
 ```
 
-The examples measure reused-Vec formatting, in-memory scanning, and buffered file
+The examples measure reused-Vec formatting (including derived structs/enums), in-memory scanning, and buffered file
 output separately. The file benchmark includes OS caching and does not sync to disk.
 Performance is being measured and tuned; no universal speedup is claimed.
 See [measured snapshots and methodology](docs/PERFORMANCE.md).
