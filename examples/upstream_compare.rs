@@ -112,11 +112,17 @@ fn main() -> io::Result<()> {
     if mode == "verify" {
         return verify(&records, &args[4], capacity);
     }
-    let (elapsed, bytes, checksum) = if mode == "scan" {
+    let (elapsed, bytes, checksum) = if mode.starts_with("scan") {
+        let mask = match mode {
+            "scan" => u64::MAX,
+            "scan-u8" => u64::from(u8::MAX),
+            "scan-u32" => u64::from(u32::MAX),
+            _ => panic!("unknown scan mode"),
+        };
         let mut data = Vec::new();
         let mut expected = 0u64;
         for index in 0..count {
-            let value = records[index % RECORDS].id;
+            let value = records[index % RECORDS].id & mask;
             writeln!(data, "{value}")?;
             expected = expected.wrapping_add(value);
         }

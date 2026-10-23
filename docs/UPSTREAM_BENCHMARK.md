@@ -37,6 +37,12 @@ CPU N on Windows or Linux. Compilation happens before pinning; no global CPU,
 frequency or power settings change. The selected CPU is recorded in the report.
 This reduces migration noise but does not isolate that CPU from other work.
 
+`--modes scan-u8 scan-u32 scan` selects short, medium and full-width unsigned
+decimal inputs. Values are masked to 8/32/64 bits, but all three parse into u64.
+`--modes` can also select `slice` and `grow`. Additional scan modes require a
+baseline driver built with the same mode support; the original three modes
+retain their initial workloads.
+
 ## Measurement contract
 
 - A deterministic table of 1,024 records includes zero, unsigned MAX, signed MIN,

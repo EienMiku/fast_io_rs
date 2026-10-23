@@ -81,6 +81,8 @@ def main():
     parser.add_argument("--payload", type=int, default=0)
     parser.add_argument("--baseline-rust", type=Path, help="also run a previously built Rust driver")
     parser.add_argument("--cpu", type=int, help="pin this runner and benchmark children to one logical CPU")
+    parser.add_argument("--modes", nargs="+", choices=("slice", "grow", "scan", "scan-u8", "scan-u32"),
+                        default=("slice", "grow", "scan"))
     parser.add_argument("--output", type=Path, default=ROOT / "target/upstream-results.json")
     args = parser.parse_args()
     if min(args.count, args.scan_count, args.samples) <= 0 or args.payload < 0:
@@ -126,18 +128,21 @@ def main():
             if output.read_bytes() != expected:
                 raise RuntimeError(f"{language}: output differs from independent Python reference")
     print(f"Verified both memory paths: {len(expected)} bytes, 1024 distinct records.", flush=True)
-    cases = [(language, mode) for mode in ("slice", "grow", "scan") for language in binaries]
+    cases = [(language, mode) for mode in args.modes for language in binaries]
     samples = {f"{language}/{mode}": [] for language, mode in cases}
     for round_index in range(args.samples):
         # Rotate the first process across both implementations and all workloads.
         for step in range(len(cases)):
             language, mode = cases[(round_index + step) % len(cases)]
-            count = args.scan_count if mode == "scan" else args.count
+            scanning = mode.startswith("scan")
+            count = args.scan_count if scanning else args.count
             result = json.loads(run([binaries[language], mode, count, args.payload]))
+            mask = {"scan-u8": 255, "scan-u32": (1 << 32) - 1}.get(mode, MASK)
+            values = [value & mask for value in numbers]
             byte_count = repeated_total(
-                [len(str(value)) + 1 for value in numbers] if mode == "scan"
+                [len(str(value)) + 1 for value in values] if scanning
                 else [len(record) for record in records], count)
-            checksum = repeated_total(numbers, count) & MASK if mode == "scan" else 0
+            checksum = repeated_total(values, count) & MASK if scanning else 0
             if result["units"] != count or result["bytes"] != byte_count or result["checksum"] != checksum:
                 raise RuntimeError(f"{language}/{mode}: unexpected counts/checksum: {result}")
             if result["elapsed_ns"] <= 0:

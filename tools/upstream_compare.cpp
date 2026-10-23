@@ -137,11 +137,16 @@ int main(int argc, char** argv) {
     }
     std::int64_t elapsed{};
     std::uint64_t bytes{}, checksum{};
-    if (mode == "scan") {
+    if (mode.starts_with("scan")) {
+        std::uint64_t mask;
+        if (mode == "scan") mask = UINT64_MAX;
+        else if (mode == "scan-u8") mask = UINT8_MAX;
+        else if (mode == "scan-u32") mask = UINT32_MAX;
+        else throw std::runtime_error("unknown scan mode");
         std::string data;
         std::uint64_t expected{};
         for (std::size_t index{}; index != count; ++index) {
-            auto value = records[index % record_count].id;
+            auto value = records[index % record_count].id & mask;
             data += std::to_string(value) + '\n';
             expected += value;
         }
