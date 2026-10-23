@@ -75,9 +75,8 @@ impl<E: fmt::Display> fmt::Display for ReadError<E> {
         }
     }
 }
-#[cfg(feature = "std")]
-impl<E: std::error::Error + 'static> std::error::Error for ReadError<E> {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl<E: core::error::Error + 'static> core::error::Error for ReadError<E> {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
             Self::Source(error) => Some(error),
             _ => None,

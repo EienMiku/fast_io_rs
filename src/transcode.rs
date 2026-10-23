@@ -17,8 +17,7 @@ impl fmt::Display for Utf16Error {
         )
     }
 }
-#[cfg(feature = "std")]
-impl std::error::Error for Utf16Error {}
+impl core::error::Error for Utf16Error {}
 
 /// Validated UTF-16 input, formatted as UTF-8.
 #[derive(Clone, Copy, Debug)]

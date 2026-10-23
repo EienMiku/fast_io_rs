@@ -17,11 +17,10 @@ impl<R: fmt::Display, W: fmt::Display> fmt::Display for CopyError<R, W> {
         }
     }
 }
-#[cfg(feature = "std")]
-impl<R: std::error::Error + 'static, W: std::error::Error + 'static> std::error::Error
+impl<R: core::error::Error + 'static, W: core::error::Error + 'static> core::error::Error
     for CopyError<R, W>
 {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
             Self::Source(error) => Some(error),
             Self::Sink(error) => Some(error),

@@ -21,8 +21,7 @@ impl fmt::Display for ParseError {
         }
     }
 }
-#[cfg(feature = "std")]
-impl std::error::Error for ParseError {}
+impl core::error::Error for ParseError {}
 
 #[derive(Debug)]
 pub enum ScanError<E> {
@@ -41,9 +40,8 @@ impl<E: fmt::Display> fmt::Display for ScanError<E> {
         }
     }
 }
-#[cfg(feature = "std")]
-impl<E: std::error::Error + 'static> std::error::Error for ScanError<E> {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl<E: core::error::Error + 'static> core::error::Error for ScanError<E> {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
             Self::Source(e) => Some(e),
             Self::Parse(e) => Some(e),

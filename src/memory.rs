@@ -17,8 +17,7 @@ impl fmt::Display for CapacityError {
         )
     }
 }
-#[cfg(feature = "std")]
-impl std::error::Error for CapacityError {}
+impl core::error::Error for CapacityError {}
 
 /// Output into caller-owned storage without allocation.
 #[derive(Debug)]
