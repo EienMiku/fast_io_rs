@@ -1,5 +1,5 @@
 #![cfg(feature = "alloc")]
-use fast_io::{CapacityError, Presence, Sink, SliceSink, write, write_scatter};
+use fast_io::{CapacityError, Encode, Presence, Sink, SliceSink, write, write_scatter};
 
 #[test]
 fn decimal_extremes_and_utf8() {
@@ -38,6 +38,21 @@ fn decimal_extremes_and_utf8() {
                 assert_eq!(output, expected.as_bytes());
             }
         }
+    }
+    for value in [
+        u64::from(u32::MAX),
+        u64::from(u32::MAX) + 1,
+        10_000_000_000_000_001,
+        u64::MAX,
+    ] {
+        let mut storage = [0; 21];
+        let used = value.encode_reserved(&mut storage).into_value();
+        assert_eq!(&storage[..used], value.to_string().as_bytes());
+    }
+    for value in [i64::MIN, i64::MAX] {
+        let mut storage = [0; 21];
+        let used = value.encode_reserved(&mut storage).into_value();
+        assert_eq!(&storage[..used], value.to_string().as_bytes());
     }
     let mut out = Vec::new();
     write(&mut out, "Rust / 中文 / ").unwrap();

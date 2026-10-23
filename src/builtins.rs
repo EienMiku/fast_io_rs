@@ -121,8 +121,38 @@ macro_rules! decimal {
         }
     };
 }
-decimal!(decimal64, u64);
+decimal!(decimal32, u32);
 decimal!(decimal128, u128);
+
+// A complete eight-digit tail can be written with four small integer pairs.
+// Splitting large values first avoids a serial chain of 64-bit divisions.
+#[inline]
+fn decimal_tail(mut value: u32, buffer: &mut [u8]) {
+    for output in buffer[..8].rchunks_exact_mut(2) {
+        let pair = (value % 100) as usize;
+        value /= 100;
+        output.copy_from_slice(&PAIRS[2 * pair..2 * pair + 2]);
+    }
+}
+
+// Keep the width test visible when this is called for narrower integer types.
+#[inline(always)]
+fn decimal64(value: u64, buffer: &mut [u8]) -> usize {
+    if let Ok(small) = u32::try_from(value) {
+        return decimal32(small, buffer);
+    }
+    let upper = value / 100_000_000;
+    let lower = (value % 100_000_000) as u32;
+    let len = if upper < 100_000_000 {
+        decimal32(upper as u32, buffer)
+    } else {
+        let len = decimal32((upper / 100_000_000) as u32, buffer);
+        decimal_tail((upper % 100_000_000) as u32, &mut buffer[len..]);
+        len + 8
+    };
+    decimal_tail(lower, &mut buffer[len..]);
+    len + 8
+}
 
 macro_rules! unsigned {
     ($ty:ty, $wide:ty, $decimal:ident) => {
