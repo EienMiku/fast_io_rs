@@ -22,6 +22,8 @@ cargo run --release --example file_throughput -- 1000 16384
 cargo run --release --features derive --example derive_throughput -- 500000
 cargo run --release --example socket_throughput -- 10000 32
 cargo run --release --example socket_throughput -- 1000 16384
+cargo run --release --example read_throughput -- 100000 32
+cargo run --release --example read_throughput -- 1000 16384
 ```
 
 ## Formatting
@@ -157,6 +159,31 @@ buffering is much more effective for many small records because it can combine
 multiple records per send. The large-payload buffered result does not show a
 fast_io advantage. These are different batching policies, so their timing is not
 evidence that an individual formatting routine or system call has that speedup.
+
+## Binary file input
+
+The input example reads an 8-byte header followed by a configurable payload for
+each record, from one temporary file. It compares std BufReader, Input (backed by
+std BufReader), inline BufferedInput, and an Input wrapper that deliberately
+omits the optional direct-read hook. Every received byte is verified after each
+sample. All paths have 8192-byte buffers, a warm-up, and seven rotated samples;
+file generation, rewind, allocations and output initialization are outside
+timing. The file is OS-cached, and reads target reused preallocated memory.
+
+Initial results with the `104bc94` implementation:
+
+| Implementation | 32-byte payload, ns/record | 16384-byte payload, ns/record |
+| --- | ---: | ---: |
+| std BufReader | 22.02 | 7251.40 |
+| fast_io Input, direct hook | 32.59 | 8741.30 |
+| fast_io BufferedInput, inline buffer | 28.74 | 8253.10 |
+| fast_io source-buffer fallback | 26.91 | 7332.40 |
+
+The small case has 100,000 records / 4,000,000 bytes; the large case has 1,000
+records / 16,392,000 bytes. There is no demonstrated fast_io speed advantage in
+this run. A direct-read capability can avoid an intermediate copy, but that does
+not guarantee lower total cost: small headers, prefetch state and call overhead
+also affect the result.
 
 ## What remains to measure
 

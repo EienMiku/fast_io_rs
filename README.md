@@ -157,10 +157,13 @@ cargo run --release --example scan_throughput -- 200000
 cargo run --release --example file_throughput -- 100000
 cargo run --release --features derive --example derive_throughput -- 500000
 cargo run --release --example socket_throughput -- 10000 32
+cargo run --release --example read_throughput -- 1000 16384
 ```
 
 The examples separately measure reused-Vec formatting (including derived
 structs/enums), in-memory scanning, buffered files, and loopback TCP output.
+The binary file-read benchmark compares std buffering, both fast_io input
+buffers, and the generic source-buffer fallback with identical verified bytes.
 The file benchmark includes OS caching and does not sync to disk; the TCP
 benchmark includes completion of a receiver thread on the same machine.
 Performance is being measured and tuned; no universal speedup is claimed.

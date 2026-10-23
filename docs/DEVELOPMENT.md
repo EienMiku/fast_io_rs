@@ -46,7 +46,9 @@ bounded scanning, incremental token folds, parameterized parsers and base-2-thro
 slice tokens; bounded records/UTF-8 lines; buffered input; explicit-endian
 binary primitive I/O; stream copy and byte-limited source views; UTF-16/UTF-8
 adapters; raw partial/exact reads; existing BufReader reuse; optional struct/enum derive; examples
-and reproducible formatting/scanning/file-output/loopback-TCP microbenchmarks.
+and reproducible formatting/scanning/binary-file-input/file-output/loopback-TCP
+microbenchmarks. The binary input benchmark checks both buffering implementations
+against std and against a source wrapper without the direct-read hook.
 
 The derive supports per-type/per-variant layouts, skipping fields, transparent
 wrappers, generics and renamed dependencies. Adjacent literal text is merged
