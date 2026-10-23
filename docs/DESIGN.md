@@ -52,9 +52,19 @@ from arbitrary encoder bodies.
 
 ## Composition and device choice
 
-The print macros borrow their arguments into a heterogeneous `Cons`/`End` list.
-Values are evaluated once, and temporary arguments live through the operation.
-Its `RESERVABLE` constant is a conjunction of its fields' capabilities.
+The print macros borrow their arguments into a heterogeneous tree of
+`Cons`/`End` leaves and `Joined` subtrees. Long invocations group eight values per
+step; derive builds a balanced tree directly. This avoids a separate macro and
+trait recursion level for every field in a wide record. Values are evaluated
+once, left to right, and temporary arguments live through the operation. The
+tree's `RESERVABLE` constant is a conjunction of its fields' capabilities.
+
+The reserved encoder inlines the recursive tree steps and thin capability
+adapters. A local benchmark found that leaving these as separate functions
+materialized a stack list of field pointers and slowed derived values. The
+conversion routines themselves can still remain separate functions. This is a
+code-generation choice with potential code-size costs, not a stronger type-level
+guarantee; see [the measurements](PERFORMANCE.md#derived-records).
 
 Vec and fixed-buffer sinks can reserve a complete argument list once. Persistent
 buffers do the same when the upper bound fits; they drain when more room is
