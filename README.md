@@ -146,7 +146,10 @@ allocation and implements `Source`, so it works with the same scanner, binary
 readers and copying helpers. With std, `BufferedInput::new(Io::new(reader))`
 also provides inline buffering of a standard reader, retrying interruptions.
 Keep the wrapper to retain prefetched data; `BufferedInput::into_inner` discards
-any unread buffer, which can first be inspected with `buffer()`.
+any unread buffer. `buffer()` inspects those bytes, and `into_parts()` returns
+the device plus an owned `BufferedBytes<N>` containing them. `Buffered::into_parts`
+similarly recovers pending output without writing or flushing. The recovered
+bytes implement both `Source` and `Encode`, without requiring allocation.
 Both `Input` and `BufferedInput` with `std::io::Error` also implement standard
 `Read` / `BufRead`, allowing existing Rust readers and fast_io scanners to share
 the same buffer without unwrapping it.

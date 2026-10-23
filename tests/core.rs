@@ -123,6 +123,8 @@ fn buffered_failure_does_not_replay_a_partial_prefix() {
         buffered.write_all(b"pending").unwrap();
         assert!(buffered.flush().is_err());
         assert!(buffered.pending().is_empty());
+        let (_, pending) = buffered.into_parts();
+        assert!(pending.is_empty());
     }
     assert_eq!(inner.calls, 1);
 

@@ -98,6 +98,30 @@ fn exact_reads_use_cached_bytes_and_respect_limits() {
     assert_eq!(&payload[..5], b"abcde");
 }
 
+#[test]
+fn splitting_buffers_preserves_pending_bytes_without_io() {
+    let mut input = BufferedInput::<_, 4>::new(b"abcdef".as_slice());
+    assert_eq!(input.fill_buf().unwrap(), b"abcd");
+    input.consume(2);
+    let (rest, mut pending) = input.into_parts();
+    assert_eq!(rest, b"ef");
+    assert_eq!(pending.as_bytes(), b"cd");
+    let mut read = [0; 2];
+    fast_io::read_exact(&mut pending, &mut read).unwrap();
+    assert_eq!(&read, b"cd");
+    assert!(pending.is_empty());
+
+    let mut storage = [0; 8];
+    let sink = fast_io::SliceSink::new(&mut storage);
+    let mut output = fast_io::Buffered::<_, 8>::new(sink);
+    fast_io::print!(&mut output; "value=", 7).unwrap();
+    let (mut sink, pending) = output.into_parts();
+    assert!(sink.is_empty(), "into_parts must not drain the buffer");
+    assert_eq!(pending.as_ref(), b"value=7");
+    fast_io::write(&mut sink, &pending).unwrap();
+    assert_eq!(sink.as_bytes(), b"value=7");
+}
+
 #[cfg(feature = "std")]
 #[test]
 fn input_buffers_interoperate_with_std_without_losing_prefetched_bytes() {

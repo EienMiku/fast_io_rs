@@ -85,9 +85,24 @@ impl<R: Reader, const N: usize> BufferedInput<R, N> {
     /// Return the device, discarding any unread prefetched bytes.
     ///
     /// Inspect `buffer()` first if those bytes must be retained. To keep reading
-    /// in order, retain this buffered source instead of unwrapping it.
+    /// in order, retain this buffered source or recover both parts with `into_parts`.
     pub fn into_inner(self) -> R {
         self.inner
+    }
+
+    /// Recover the reader and unread prefetched bytes without performing I/O.
+    ///
+    /// Read the returned buffered bytes before reading from the device to retain
+    /// the original input order. No allocation is required.
+    pub fn into_parts(self) -> (R, crate::BufferedBytes<N>) {
+        (
+            self.inner,
+            crate::BufferedBytes {
+                buffer: self.buffer,
+                start: self.position,
+                end: self.filled,
+            },
+        )
     }
 }
 

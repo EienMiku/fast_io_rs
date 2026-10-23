@@ -53,6 +53,23 @@ impl<S: Sink, const N: usize> Buffered<S, N> {
         let inner = self.inner.take().expect("buffer has been finished");
         result.map(|()| inner)
     }
+
+    /// Recover the inner sink and pending bytes without writing or flushing.
+    ///
+    /// This suppresses the buffer's best-effort Drop flush. Only bytes not yet
+    /// submitted to the sink are returned: a failed drain already discarded its
+    /// pending bytes because the sink may have written an unknown prefix.
+    /// To retain an owned sink after an error, call `flush` followed by this
+    /// method instead of consuming it with `finish`.
+    pub fn into_parts(mut self) -> (S, crate::BufferedBytes<N>) {
+        let inner = self.inner.take().expect("buffer has been finished");
+        let bytes = crate::BufferedBytes {
+            buffer: core::mem::replace(&mut self.buffer, [0; N]),
+            start: 0,
+            end: self.len,
+        };
+        (inner, bytes)
+    }
 }
 impl<S: Sink, const N: usize> Sink for Buffered<S, N> {
     type Error = S::Error;

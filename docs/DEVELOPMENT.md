@@ -41,8 +41,8 @@
 - `Reader` is the minimal raw-device input trait. `BufferedInput<R, N>` adds
   fixed-capacity buffering without std/alloc, exposes `Source`, and bypasses an
   empty buffer for large direct reads. `Io<R>` adapts std readers and retries
-  interruptions. Unwrapping `BufferedInput` discards its unread buffer; inspect
-  `buffer()` or keep the wrapper when unread bytes must be retained.
+  interruptions. `BufferedInput::into_inner` discards its unread buffer; inspect
+  `buffer()`, keep the wrapper, or use `into_parts` to retain unread bytes.
   With std, both input wrappers implement std Read/BufRead when the device error
   is std::io::Error, so consumers can switch APIs without dropping prefetch.
 
@@ -84,6 +84,10 @@ specifiers and empty enums are not supported.
 - `Batch::finish` writes pending fragments; it does not flush the device.
   `Buffered::flush`/`finish` also flush the inner device. Buffered Drop is best
   effort only; Batch Drop performs no I/O.
+- `Buffered::into_parts` and `BufferedInput::into_parts` recover the owned
+  device plus `BufferedBytes<N>` without I/O. The returned bytes implement
+  Source/Encode and preserve the logical pending range without allocation.
+  Output bytes already discarded after a failed drain cannot be recovered.
 - Invalid/oversized scan tokens are consumed completely; an I/O failure can lose
   a partially consumed token. `Input::into_inner` retains its `BufReader` so
   callers keep unread prefetched bytes.
