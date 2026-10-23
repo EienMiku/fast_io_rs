@@ -88,6 +88,25 @@ performance difference. The machine was not isolated and individual samples
 were noisy. [Raw samples and build metadata](benchmarks/upstream-baseline-2026-10-24.json)
 are retained so later improvements can be compared with the same workload.
 
+### Decimal prefix experiment
+
+The initial Rust parser checked overflow on every digit if the *whole* token
+was long. A follow-up reuses the proven-fitting prefix even for long tokens,
+then checks each remaining digit. It keeps first-error ordering, signed MIN,
+leading zeroes, and the same stream recovery rules. A nine-sample run using
+`--baseline-rust` with the unchanged `0c3358d` executable measured:
+
+| Scanner | Median ns/token | Range |
+| --- | ---: | ---: |
+| C++ upstream | 13.34 | 11.27–17.46 |
+| Rust before | 32.52 | 29.07–36.97 |
+| Rust with fitting prefix | 29.38 | 25.18–36.06 |
+
+This run shows a modest local improvement (about 10% in the medians), with
+overlapping ranges and a substantial remaining gap to C++. The preserved
+[raw comparison](benchmarks/upstream-prefix-2026-10-24.json) includes the baseline
+binary hash and the uncommitted `src/scan.rs` status from the experiment.
+
 ## Current upstream build limitation
 
 At revision `7a6fa9b680de8355f9f743e0f8950492cf5a42f0`, including `fast_io.h`

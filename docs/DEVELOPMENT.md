@@ -38,6 +38,9 @@
   `usize::MAX` token limit is usable for primitive integer scans; methods using
   complete-token scratch (including `scan_with`/`scan_radix`) still allocate N
   stack bytes. The tiny-buffer benchmark compares streaming and copied tokens.
+  Complete decimal parsers accumulate a provably fitting prefix without overflow
+  checks and check each remaining digit. This also applies to long tokens rather
+  than repeating overflow checks for the safe prefix of every 20-digit u64.
 - `Reader` is the minimal raw-device input trait. `BufferedInput<R, N>` adds
   fixed-capacity buffering without std/alloc, exposes `Source`, and bypasses an
   empty buffer for large direct reads. `Io<R>` adapts std readers and retries

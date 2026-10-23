@@ -348,18 +348,16 @@ macro_rules! unsigned {
                 let start = usize::from(token.first() == Some(&b'+'));
                 if token.len() == start { return Err(ParseError::Empty); }
                 let mut value: Self = 0;
-                // Every decimal value this short fits, so only validate digits.
+                // Every prefix this short fits, even when more digits follow.
                 // floor(BITS * log10(2)) is a safe bound for all integer widths.
-                if token.len() - start <= (<$ty>::BITS as usize * 30103 / 100000) {
-                    for (index, &byte) in token[start..].iter().enumerate() {
-                        let digit = byte.wrapping_sub(b'0');
-                        if digit > 9 { return Err(ParseError::InvalidDigit { offset: start + index }); }
-                        value = value.wrapping_mul(10).wrapping_add(digit as Self);
-                    }
-                    return Ok(value);
+                let safe_end = token.len().min(start + (<$ty>::BITS as usize * 30103 / 100000));
+                for (index, &byte) in token[start..safe_end].iter().enumerate() {
+                    let digit = byte.wrapping_sub(b'0');
+                    if digit > 9 { return Err(ParseError::InvalidDigit { offset: start + index }); }
+                    value = value.wrapping_mul(10).wrapping_add(digit as Self);
                 }
-                for (index, &byte) in token[start..].iter().enumerate() {
-                    if !byte.is_ascii_digit() { return Err(ParseError::InvalidDigit { offset: start + index }); }
+                for (index, &byte) in token[safe_end..].iter().enumerate() {
+                    if !byte.is_ascii_digit() { return Err(ParseError::InvalidDigit { offset: safe_end + index }); }
                     value = value.checked_mul(10)
                         .and_then(|n| n.checked_add((byte - b'0') as Self))
                         .ok_or(ParseError::Overflow)?;
@@ -420,16 +418,15 @@ macro_rules! signed {
                 let start = usize::from(negative || token.first() == Some(&b'+'));
                 if token.len() == start { return Err(ParseError::Empty); }
                 let mut value: Self = 0;
-                if token.len() - start <= ((<$ty>::BITS as usize - 1) * 30103 / 100000) {
-                    for (index, &byte) in token[start..].iter().enumerate() {
-                        let digit = byte.wrapping_sub(b'0');
-                        if digit > 9 { return Err(ParseError::InvalidDigit { offset: start + index }); }
-                        value = value.wrapping_mul(10).wrapping_add(digit as Self);
-                    }
-                    return Ok(if negative { value.wrapping_neg() } else { value });
+                let safe_end = token.len().min(start + ((<$ty>::BITS as usize - 1) * 30103 / 100000));
+                for (index, &byte) in token[start..safe_end].iter().enumerate() {
+                    let digit = byte.wrapping_sub(b'0');
+                    if digit > 9 { return Err(ParseError::InvalidDigit { offset: start + index }); }
+                    value = value.wrapping_mul(10).wrapping_add(digit as Self);
                 }
-                for (index, &byte) in token[start..].iter().enumerate() {
-                    if !byte.is_ascii_digit() { return Err(ParseError::InvalidDigit { offset: start + index }); }
+                if negative { value = value.wrapping_neg(); }
+                for (index, &byte) in token[safe_end..].iter().enumerate() {
+                    if !byte.is_ascii_digit() { return Err(ParseError::InvalidDigit { offset: safe_end + index }); }
                     let multiplied = value.checked_mul(10).ok_or(ParseError::Overflow)?;
                     value = if negative {
                         multiplied.checked_sub((byte - b'0') as Self)

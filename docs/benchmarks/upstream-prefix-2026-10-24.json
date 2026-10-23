@@ -1,0 +1,576 @@
+{
+  "started_at_utc": "2026-10-23T16:04:53.276418+00:00",
+  "finished_at_utc": "2026-10-23T16:05:07.309023+00:00",
+  "upstream_revision": "7a6fa9b680de8355f9f743e0f8950492cf5a42f0",
+  "rust_revision": "1e867389529fa76765d8e9ee9189382f2d4005f5",
+  "rust_worktree_status": "M src/scan.rs",
+  "platform": "Windows-10-10.0.29683-SP0",
+  "cpu": "Intel64 Family 6 Model 141 Stepping 1, GenuineIntel",
+  "cxx_version": "clang version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)\nTarget: x86_64-pc-windows-msvc\nThread model: posix\nInstalledDir: D:\\Program Files\\LLVM\\bin",
+  "rust_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-pc-windows-msvc\nrelease: 1.99.1\nLLVM version: 23.1.1",
+  "commands": [
+    [
+      "D:\\Program Files\\LLVM\\bin\\clang++.EXE",
+      "-std=c++26",
+      "-O3",
+      "-DNDEBUG",
+      "-I",
+      "C:\\Users\\12153\\AppData\\Local\\Temp\\fast-io-cpp-benchmark-7a6fa9b680de\\include",
+      "D:\\Coding\\fast_io_rs\\tools\\upstream_compare.cpp",
+      "-o",
+      "D:\\Coding\\fast_io_rs\\target\\upstream-compare\\upstream-cpp.exe",
+      "-lntdll"
+    ],
+    [
+      "cargo",
+      "+stable",
+      "build",
+      "--release",
+      "--example",
+      "upstream_compare",
+      "--target-dir",
+      "D:\\Coding\\fast_io_rs\\target\\upstream-compare\\rust"
+    ]
+  ],
+  "binaries": {
+    "cpp": {
+      "path": "D:\\Coding\\fast_io_rs\\target\\upstream-compare\\upstream-cpp.exe",
+      "sha256": "911f3b559cb308e11c148b785d92951e6649387bcccf2e6cfe132f746dc03855"
+    },
+    "rust": {
+      "path": "D:\\Coding\\fast_io_rs\\target\\upstream-compare\\rust\\release\\examples\\upstream_compare.exe",
+      "sha256": "7c338aa19acadeca7db8e5ef2bb9175e5c25d5047f646c0559d2b6cd19befb91"
+    },
+    "rust-baseline": {
+      "path": "D:\\Coding\\fast_io_rs\\target\\upstream-rust-baseline.exe",
+      "sha256": "7f805416cd26a7af8d065cfa305edcbdc15f2eef9ef8eba757802a0fb27dfd20"
+    }
+  },
+  "environment": {
+    "RUSTFLAGS": null,
+    "CARGO_ENCODED_RUSTFLAGS": null,
+    "CARGO_PROFILE_RELEASE_LTO": null,
+    "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": null,
+    "CARGO_PROFILE_RELEASE_PANIC": null
+  },
+  "payload": 0,
+  "verified_bytes": 106848,
+  "verification_sha256": "03de3fcd621feee5dd54e4f2eb7791b9b6f8fe0829eb038b3c7b7319a9b7dc18",
+  "samples": {
+    "cpp/slice": [
+      {
+        "elapsed_ns": 62551900,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 60153100,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 60510400,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 72862800,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 77031400,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 63369700,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 70070500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 61760800,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 57455200,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      }
+    ],
+    "rust/slice": [
+      {
+        "elapsed_ns": 73836500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 88772200,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 78089900,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 80245800,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 87217900,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 80757400,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 81532200,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 75868800,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 74777800,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      }
+    ],
+    "rust-baseline/slice": [
+      {
+        "elapsed_ns": 95650000,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 81806500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 77128500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 91542100,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 73992800,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 82494700,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 77879200,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 79434200,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 73712600,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      }
+    ],
+    "cpp/grow": [
+      {
+        "elapsed_ns": 77613500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 92158700,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 82252200,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 78953300,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 87862400,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 82137800,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 81348600,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 76485100,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 75222300,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      }
+    ],
+    "rust/grow": [
+      {
+        "elapsed_ns": 86968100,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 90349500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 90849000,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 90608500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 102521300,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 87580700,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 87320000,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 83634900,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 83579200,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      }
+    ],
+    "rust-baseline/grow": [
+      {
+        "elapsed_ns": 78979500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 81999400,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 90938500,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 151239300,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 91557600,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 78464300,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 87098000,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 82462900,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      },
+      {
+        "elapsed_ns": 84653100,
+        "units": 2000000,
+        "bytes": 208687395,
+        "checksum": 0
+      }
+    ],
+    "cpp/scan": [
+      {
+        "elapsed_ns": 13205300,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 14878400,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 13339000,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 12886100,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 17455500,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 13658500,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 11519600,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 14080500,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 11267000,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      }
+    ],
+    "rust/scan": [
+      {
+        "elapsed_ns": 25177000,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 36059200,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 31492500,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 26775200,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 26576300,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 28826200,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 29384100,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 30181800,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 33389700,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      }
+    ],
+    "rust-baseline/scan": [
+      {
+        "elapsed_ns": 29553300,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 36968500,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 34045100,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 32516800,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 35672900,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 29904700,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 31478600,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 36289500,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      },
+      {
+        "elapsed_ns": 29070900,
+        "units": 1000000,
+        "bytes": 20368156,
+        "checksum": 16381768823560511832
+      }
+    ]
+  },
+  "median_ns_per_unit": {
+    "cpp/slice": 31.27595,
+    "rust/slice": 40.1229,
+    "rust-baseline/slice": 39.7171,
+    "cpp/grow": 40.6743,
+    "rust/grow": 43.79035,
+    "rust-baseline/grow": 42.32655,
+    "cpp/scan": 13.339,
+    "rust/scan": 29.3841,
+    "rust-baseline/scan": 32.5168
+  }
+}
