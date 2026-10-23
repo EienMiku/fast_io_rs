@@ -112,13 +112,19 @@ fn explicit_float_precision_rounds_and_respects_reserved_bounds() {
         b"1.12 -0 1.234E3"
     );
     for value in [
+        0.0,
+        -0.0,
+        0.9999,
+        9.9999,
+        99.9999,
+        999.9999,
         f64::MAX,
         -f64::MAX,
         f64::from_bits(1),
         f64::NAN,
         f64::NEG_INFINITY,
     ] {
-        for formatted in [fixed(value, 6), scientific(value, 6)] {
+        for formatted in [fixed(value, 0), fixed(value, 6), scientific(value, 6)] {
             let mut buffer = vec![0; formatted.reserve_size().into_value()];
             let used = formatted.encode_reserved(&mut buffer).into_value();
             let mut streamed = Vec::new();

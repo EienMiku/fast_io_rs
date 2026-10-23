@@ -37,13 +37,29 @@ mod sealed {
 pub trait Float: sealed::Sealed + Copy + fmt::Display + fmt::LowerExp + fmt::UpperExp {
     #[doc(hidden)]
     const MAX_INTEGER_DIGITS: usize;
+    #[doc(hidden)]
+    fn integer_digits_bound(self) -> Option<usize>;
 }
-impl Float for f32 {
-    const MAX_INTEGER_DIGITS: usize = 39;
+macro_rules! float_bound {
+    ($ty:ty, $mantissa:expr, $mask:expr, $bias:expr, $digits:expr) => {
+        impl Float for $ty {
+            const MAX_INTEGER_DIGITS: usize = $digits;
+            fn integer_digits_bound(self) -> Option<usize> {
+                let exponent = ((self.to_bits() >> $mantissa) & $mask) as u32;
+                if exponent == $mask {
+                    return None;
+                }
+                // Magnitude is below 2^bits, or below 1 when bits is zero.
+                // Rounding to a nonnegative precision cannot exceed 2^bits.
+                // 30103/100000 slightly overestimates log10(2).
+                let bits = exponent.saturating_sub($bias - 1);
+                Some((bits * 30103 / 100000 + 1) as usize)
+            }
+        }
+    };
 }
-impl Float for f64 {
-    const MAX_INTEGER_DIGITS: usize = 309;
-}
+float_bound!(f32, 23, 0xff, 127, 39);
+float_bound!(f64, 52, 0x7ff, 1023, 309);
 
 #[derive(Clone, Copy, Debug)]
 enum Style {
@@ -113,9 +129,12 @@ impl<T: Float> Encode for FloatFormat<T> {
 
     fn reserve_size(&self) -> impl Presence<usize> {
         let overhead = match self.style {
-            // Sign, integer digits, decimal point. An extra byte for precision
-            // zero is harmless; this is deliberately an upper bound.
-            Style::Fixed => T::MAX_INTEGER_DIGITS + 2,
+            Style::Fixed => {
+                let Some(digits) = self.value.integer_digits_bound() else {
+                    return 4; // NaN, inf, -inf; precision has no effect.
+                };
+                digits + 1 + usize::from(self.precision != 0)
+            }
             // Sign, leading digit, point, e, exponent sign, three exponent digits.
             Style::Scientific | Style::UpperScientific => 8,
         };

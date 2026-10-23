@@ -30,7 +30,8 @@ retain their own implementation and licensing.
 ## Implemented
 
 Presence and forwarding; slice/Vec/std sinks; integer/float/string formatting;
-fixed/scientific float precision with core::fmt conversion and reserved bounds;
+fixed/scientific float precision with core::fmt conversion and reserved bounds
+(fixed-point bounds use the value's binary exponent, including rounding carry);
 radix, quoted strings and byte-width alignment; output batches and composition;
 persistent buffering; locked stdio and owned formatting macros; std fmt adapters;
 bounded scanning, incremental token folds, parameterized parsers and base-2-through-36 integers; borrowed
