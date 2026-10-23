@@ -48,7 +48,7 @@ bounded scanning, incremental token folds, parameterized parsers and base-2-thro
 slice tokens; bounded records/UTF-8 lines; buffered input; explicit-endian
 binary primitive I/O; stream copy and byte-limited source views; UTF-16/UTF-8
 adapters; raw partial/exact reads; existing BufReader reuse; optional struct/enum derive; examples
-and reproducible formatting/scanning/binary-file-input/file-output/loopback-TCP
+and reproducible formatting/scanning/binary-file-input/file-output/pipe/loopback-TCP
 microbenchmarks. The binary input benchmark checks both buffering implementations
 against std and against a source wrapper without the direct-read hook.
 
@@ -97,9 +97,10 @@ See [DESIGN.md](DESIGN.md) for the optional-hook mechanism and a codegen probe.
 
 ## Next priorities
 
-- Measure pipes and non-loopback sockets before adding native handles or more
-  complex OS specialization. File and loopback TCP benchmarks check matching
-  bytes; TCP measurements distinguish per-record scatter from buffering records.
+- Measure non-loopback sockets and varied pipe workloads before adding native
+  handles or more complex OS specialization. File, pipe and loopback TCP
+  benchmarks check matching bytes and distinguish per-record scatter from
+  persistent buffering. The pipe receiver validates in a child process.
 - Treat scatter presence as a functional capability, not a performance promise.
   Routing oversized buffered records through scatter regressed on Windows and
   was not adopted; see the large-record measurements before revisiting it.

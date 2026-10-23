@@ -7,7 +7,7 @@ or a prediction of uncached disk, terminal, or network throughput.
 
 - Windows x86-64, Intel Core i7-11800H @ 2.30 GHz.
 - Rust 1.99.1 (`58cf8f9c3`, 2026-10-13), stable, default release profile.
-- Five samples for the original memory benchmarks and loopback sockets, nine
+- Five samples for the original memory benchmarks, pipes and loopback sockets, nine
   for derived types, three for file output; report medians.
 - Formatting runs alternate implementation order; the current scanner benchmark
   rotates it. Older scanner snapshots below used a fixed order without a warm-up.
@@ -24,6 +24,8 @@ cargo run --release --example socket_throughput -- 10000 32
 cargo run --release --example socket_throughput -- 1000 16384
 cargo run --release --example read_throughput -- 100000 32
 cargo run --release --example read_throughput -- 1000 16384
+cargo run --release --example pipe_throughput -- 10000 32
+cargo run --release --example pipe_throughput -- 1000 16384
 ```
 
 ## Formatting
@@ -160,6 +162,28 @@ multiple records per send. The large-payload buffered result does not show a
 fast_io advantage. These are different batching policies, so their timing is not
 evidence that an individual formatting routine or system call has that speedup.
 
+## Anonymous pipe output
+
+This uses the same records and four output policies as the TCP example, sending
+through a child process's standard-input pipe. A readiness handshake excludes
+process startup and receiver buffer allocation from timing. The timed operation
+includes formatting, sends, pipe closure and a receipt acknowledgement. The
+child then validates every byte outside the timer, and the parent checks its
+exit status. Five rotated samples follow a warm-up for each policy.
+
+| Implementation | 32-byte payload, ns/record | 16384-byte payload, ns/record |
+| --- | ---: | ---: |
+| std BufWriter + writeln! | 109.18 | 8060.60 |
+| fast_io Buffered + println! | 38.24 | 7981.40 |
+| std unbuffered writeln! | 15173.68 | 18150.10 |
+| fast_io unbuffered scatter + println! | 8041.52 | 11661.90 |
+
+The small and large cases use 10,000 and 1,000 records respectively, with the
+same byte counts as the TCP cases. These local Windows measurements again show
+the value of combining small writes. For large records the two buffered paths
+are close; this is not evidence of a general pipe throughput advantage. Pipe
+capacity, receiver scheduling and platform implementations all affect results.
+
 ## Binary file input
 
 The input example reads an 8-byte header followed by a configurable payload for
@@ -187,7 +211,7 @@ also affect the result.
 
 ## What remains to measure
 
-- Unbuffered files, pipes and non-loopback sockets under varied buffering policies.
+- Unbuffered files and non-loopback sockets; varied pipe capacities and receivers.
 - Formatting adapters and longer/more deeply nested derived types.
 - Small source buffers, near-limit tokens and floating-point inputs.
 - Allocation counts, generated machine code, and comparable C++ fast_io cases.

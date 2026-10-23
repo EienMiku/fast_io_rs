@@ -58,6 +58,10 @@ required-features = ["std"]
 name = "read_throughput"
 required-features = ["std"]
 
+[[example]]
+name = "pipe_throughput"
+required-features = ["std"]
+
 [lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
 missing_debug_implementations = "warn"

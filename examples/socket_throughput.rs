@@ -1,74 +1,16 @@
 //! Loopback TCP only, including receipt of all bytes by a reader thread.
 //! cargo run --release --example socket_throughput -- 10000 32
 //! The second argument is the payload size in bytes; try 16384 as well.
+#[path = "support/output.rs"]
+mod output;
+use output::{Mode, standard};
 use std::{
-    io::{self, BufWriter, Read, Write},
+    io::{self, Read},
     net::{Shutdown, TcpListener, TcpStream},
     sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
-
-#[derive(Clone, Copy)]
-enum Mode {
-    Standard,
-    Buffered,
-    StandardUnbuffered,
-    Scatter,
-}
-impl Mode {
-    const ALL: [Self; 4] = [
-        Self::Standard,
-        Self::Buffered,
-        Self::StandardUnbuffered,
-        Self::Scatter,
-    ];
-
-    fn label(self) -> &'static str {
-        match self {
-            Self::Standard => "std BufWriter + writeln!",
-            Self::Buffered => "fast_io Buffered + println!",
-            Self::StandardUnbuffered => "std unbuffered writeln!",
-            Self::Scatter => "fast_io Io scatter + println!",
-        }
-    }
-
-    fn send(self, stream: &TcpStream, count: u64, payload: &str) -> io::Result<()> {
-        match self {
-            Self::Standard => {
-                let mut output = BufWriter::with_capacity(8192, stream);
-                standard(&mut output, count, payload)?;
-                output.flush()
-            }
-            Self::Buffered => {
-                use fast_io::Sink;
-                let mut output = fast_io::Buffered::<_, 8192>::new(fast_io::Io::new(stream));
-                fast(&mut output, count, payload)?;
-                output.flush()
-            }
-            Self::Scatter => fast(&mut fast_io::Io::new(stream), count, payload),
-            Self::StandardUnbuffered => standard(&mut &*stream, count, payload),
-        }
-    }
-}
-
-fn standard(output: &mut impl Write, count: u64, payload: &str) -> io::Result<()> {
-    for index in 0..count {
-        writeln!(output, "id={index} payload={payload} end={}", index % 10)?;
-    }
-    Ok(())
-}
-
-fn fast(
-    output: &mut impl fast_io::Sink<Error = io::Error>,
-    count: u64,
-    payload: &str,
-) -> io::Result<()> {
-    for index in 0..count {
-        fast_io::println!(output; "id=", index, " payload=", payload, " end=", index % 10)?;
-    }
-    Ok(())
-}
 
 fn measure(mode: Mode, count: u64, payload: &str, expected: &[u8]) -> io::Result<Duration> {
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))?;
@@ -89,7 +31,7 @@ fn measure(mode: Mode, count: u64, payload: &str, expected: &[u8]) -> io::Result
     ready_rx.recv().map_err(io::Error::other)?;
 
     let start = Instant::now();
-    let sent = mode.send(&stream, count, payload);
+    let sent = mode.send(&mut &stream, count, payload);
     let shutdown = stream.shutdown(Shutdown::Write);
     let received = reader.join().expect("loopback reader panicked");
     let elapsed = start.elapsed();
