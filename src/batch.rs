@@ -112,12 +112,12 @@ impl<'s, 'v, S: Sink + ?Sized, const B: usize, const P: usize> Batch<'s, 'v, S, 
                 Piece::Scratch { start, end } => &self.scratch[start..end],
             };
         }
-        let result = write_scatter(self.sink, &fragments[..self.len]);
-        // Clear even on error: a sink can have written an unreported prefix.
-        self.pieces[..self.len].fill(EMPTY);
-        self.len = 0;
+        // Clear before calling user code: a sink may write a prefix then return
+        // an error or unwind. Catching that panic must not replay this batch.
+        let len = core::mem::take(&mut self.len);
+        self.pieces[..len].fill(EMPTY);
         self.used = 0;
-        result
+        write_scatter(self.sink, &fragments[..len])
     }
 
     /// Emit pending bytes. Does not call the underlying device's flush method.

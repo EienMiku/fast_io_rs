@@ -125,6 +125,21 @@ fn buffered_failure_does_not_replay_a_partial_prefix() {
         assert!(buffered.pending().is_empty());
     }
     assert_eq!(inner.calls, 1);
+
+    struct Panics(usize);
+    impl Sink for Panics {
+        type Error = ();
+        fn write_all(&mut self, _: &[u8]) -> Result<(), ()> {
+            self.0 += 1;
+            panic!("sink wrote a prefix then panicked");
+        }
+    }
+    let mut inner = Panics(0);
+    let mut batch = fast_io::Batch::<_, 8, 2>::new(&mut inner);
+    batch.push("pending").unwrap();
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| batch.drain())).is_err());
+    batch.finish().unwrap();
+    assert_eq!(inner.0, 1);
 }
 
 #[test]
