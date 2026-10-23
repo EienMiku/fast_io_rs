@@ -372,6 +372,9 @@ macro_rules! unsigned {
                         let bytes = scanner.source.buffered_bytes().into_value();
                         let start = bytes.iter().take_while(|b| b.is_ascii_whitespace()).count();
                         let token = bytes.get(start..)?;
+                        // Keep room for the delimiter, but do not convert an
+                        // unbounded leading-zero prefix before rejecting it.
+                        let token = &token[..token.len().min(N.saturating_add(1))];
                         let sign = usize::from(token.first() == Some(&b'+'));
                         let mut cursor = sign;
                         let mut value: Self = 0;
@@ -496,6 +499,7 @@ macro_rules! signed {
                         let bytes = scanner.source.buffered_bytes().into_value();
                         let start = bytes.iter().take_while(|b| b.is_ascii_whitespace()).count();
                         let token = bytes.get(start..)?;
+                        let token = &token[..token.len().min(N.saturating_add(1))];
                         let negative = token.first() == Some(&b'-');
                         let sign = usize::from(negative || token.first() == Some(&b'+'));
                         let mut cursor = sign;

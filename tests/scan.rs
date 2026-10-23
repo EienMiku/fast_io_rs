@@ -352,6 +352,30 @@ fn cached_decimal_prefix_preserves_parsing_and_recovery() {
         &tokens,
     );
     check::<i64, _, 48>(input.as_bytes(), &tokens);
+
+    for sign in ["", "+", "-"] {
+        for tail in ["", "x", " 7"] {
+            let input = format!("{sign}{}{tail}", "0".repeat(4096));
+            let mut scanner = Scanner::<_, 24>::with_capacity(input.as_bytes());
+            assert!(matches!(
+                scanner.scan::<i128>(),
+                Err(ScanError::TokenTooLong { limit: 24 })
+            ));
+            assert_eq!(
+                scanner.scan::<i128>().unwrap(),
+                if tail == " 7" { Some(7) } else { None }
+            );
+            let mut scanner = Scanner::<_, 24>::with_capacity(input.as_bytes());
+            assert!(matches!(
+                scanner.scan::<u64>(),
+                Err(ScanError::TokenTooLong { limit: 24 })
+            ));
+            assert_eq!(
+                scanner.scan::<u64>().unwrap(),
+                if tail == " 7" { Some(7) } else { None }
+            );
+        }
+    }
 }
 
 #[test]
