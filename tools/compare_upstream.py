@@ -81,7 +81,8 @@ def main():
     parser.add_argument("--payload", type=int, default=0)
     parser.add_argument("--baseline-rust", type=Path, help="also run a previously built Rust driver")
     parser.add_argument("--cpu", type=int, help="pin this runner and benchmark children to one logical CPU")
-    parser.add_argument("--modes", nargs="+", choices=("slice", "grow", "scan", "scan-u8", "scan-u32"),
+    parser.add_argument("--modes", nargs="+", choices=("slice", "grow", "scan", "scan-u8", "scan-u32",
+                                                     "scan-i64", "scan-i8", "scan-i32"),
                         default=("slice", "grow", "scan"))
     parser.add_argument("--output", type=Path, default=ROOT / "target/upstream-results.json")
     args = parser.parse_args()
@@ -137,8 +138,12 @@ def main():
             scanning = mode.startswith("scan")
             count = args.scan_count if scanning else args.count
             result = json.loads(run([binaries[language], mode, count, args.payload]))
-            mask = {"scan-u8": 255, "scan-u32": (1 << 32) - 1}.get(mode, MASK)
+            bits = {"scan-u8": 8, "scan-i8": 8, "scan-u32": 32, "scan-i32": 32}.get(mode, 64)
+            mask = (1 << bits) - 1
             values = [value & mask for value in numbers]
+            if mode.startswith("scan-i"):
+                values = [value - (1 << bits) if value >= (1 << (bits - 1)) else value
+                          for value in values]
             byte_count = repeated_total(
                 [len(str(value)) + 1 for value in values] if scanning
                 else [len(record) for record in records], count)

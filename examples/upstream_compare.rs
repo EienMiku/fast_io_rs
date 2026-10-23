@@ -89,13 +89,20 @@ fn memory(mode: &str, records: &[Record], count: usize, capacity: usize) -> (u12
     (start.elapsed().as_nanos(), total)
 }
 
-fn parse(data: &[u8]) -> (usize, u64) {
+fn parse(data: &[u8], signed: bool) -> (usize, u64) {
     let mut scanner = fast_io::Scanner::new(black_box(data));
     let mut count = 0;
     let mut sum = 0u64;
-    while let Some(value) = scanner.scan::<u64>().unwrap() {
-        count += 1;
-        sum = sum.wrapping_add(value);
+    if signed {
+        while let Some(value) = scanner.scan::<i64>().unwrap() {
+            count += 1;
+            sum = sum.wrapping_add(value as u64);
+        }
+    } else {
+        while let Some(value) = scanner.scan::<u64>().unwrap() {
+            count += 1;
+            sum = sum.wrapping_add(value);
+        }
     }
     black_box((count, sum))
 }
@@ -113,22 +120,30 @@ fn main() -> io::Result<()> {
         return verify(&records, &args[4], capacity);
     }
     let (elapsed, bytes, checksum) = if mode.starts_with("scan") {
-        let mask = match mode {
-            "scan" => u64::MAX,
-            "scan-u8" => u64::from(u8::MAX),
-            "scan-u32" => u64::from(u32::MAX),
+        let bits = match mode {
+            "scan" | "scan-i64" => 64,
+            "scan-u8" | "scan-i8" => 8,
+            "scan-u32" | "scan-i32" => 32,
             _ => panic!("unknown scan mode"),
         };
+        let signed = mode.starts_with("scan-i");
+        let mask = u64::MAX >> (64 - bits);
         let mut data = Vec::new();
         let mut expected = 0u64;
         for index in 0..count {
             let value = records[index % RECORDS].id & mask;
-            writeln!(data, "{value}")?;
-            expected = expected.wrapping_add(value);
+            if signed {
+                let value = ((value << (64 - bits)) as i64) >> (64 - bits);
+                writeln!(data, "{value}")?;
+                expected = expected.wrapping_add(value as u64);
+            } else {
+                writeln!(data, "{value}")?;
+                expected = expected.wrapping_add(value);
+            }
         }
-        assert_eq!(parse(&data), (count, expected));
+        assert_eq!(parse(&data, signed), (count, expected));
         let start = Instant::now();
-        let actual = parse(&data);
+        let actual = parse(&data, signed);
         let elapsed = start.elapsed().as_nanos();
         assert_eq!(actual, (count, expected));
         (elapsed, data.len() as u64, actual.1)

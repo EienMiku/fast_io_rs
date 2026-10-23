@@ -106,17 +106,19 @@ auto memory(std::string_view mode, std::vector<record> const& records,
     return std::pair{elapsed, total};
 }
 
+template<typename Integer>
 auto parse(std::string const& data) {
     escape(data.data(), data.size());
     fast_io::ibuffer_view input{data};
-    std::uint64_t value{}, sum{};
+    Integer value{};
+    std::uint64_t sum{};
     std::size_t count{};
     // The freestanding entry beneath io::scan_some avoids unrelated hosted APIs.
     while (fast_io::operations::decay::scan_some_freestanding_decay(
         fast_io::operations::input_stream_ref(input),
         fast_io::io_scan_forward<char>(fast_io::io_scan_alias(value)))) {
         ++count;
-        sum += value;
+        sum += static_cast<std::uint64_t>(value);
     }
     asm volatile("" : "+r"(count), "+r"(sum) : : "memory");
     return std::pair{count, sum};
@@ -138,22 +140,33 @@ int main(int argc, char** argv) {
     std::int64_t elapsed{};
     std::uint64_t bytes{}, checksum{};
     if (mode.starts_with("scan")) {
-        std::uint64_t mask;
-        if (mode == "scan") mask = UINT64_MAX;
-        else if (mode == "scan-u8") mask = UINT8_MAX;
-        else if (mode == "scan-u32") mask = UINT32_MAX;
+        unsigned bits;
+        if (mode == "scan" || mode == "scan-i64") bits = 64;
+        else if (mode == "scan-u8" || mode == "scan-i8") bits = 8;
+        else if (mode == "scan-u32" || mode == "scan-i32") bits = 32;
         else throw std::runtime_error("unknown scan mode");
+        auto signed_values = mode.starts_with("scan-i");
+        auto mask = UINT64_MAX >> (64 - bits);
         std::string data;
         std::uint64_t expected{};
         for (std::size_t index{}; index != count; ++index) {
             auto value = records[index % record_count].id & mask;
-            data += std::to_string(value) + '\n';
-            expected += value;
+            if (signed_values) {
+                auto number = std::bit_cast<std::int64_t>(value << (64 - bits)) >> (64 - bits);
+                data += std::to_string(number) + '\n';
+                expected += static_cast<std::uint64_t>(number);
+            } else {
+                data += std::to_string(value) + '\n';
+                expected += value;
+            }
         }
         auto wanted = std::pair{static_cast<std::size_t>(count), expected};
-        if (parse(data) != wanted) throw std::runtime_error("warmup scan differs");
+        auto parse_values = [&] {
+            return signed_values ? parse<std::int64_t>(data) : parse<std::uint64_t>(data);
+        };
+        if (parse_values() != wanted) throw std::runtime_error("warmup scan differs");
         auto start = std::chrono::steady_clock::now();
-        auto actual = parse(data);
+        auto actual = parse_values();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::steady_clock::now() - start).count();
         if (actual != wanted) throw std::runtime_error("scan differs");
