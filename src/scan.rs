@@ -87,6 +87,19 @@ impl<S: Source, const N: usize> Scanner<S, N> {
 
     #[inline]
     pub fn scan<T: Scan>(&mut self) -> Result<Option<T>, ScanError<S::Error>> {
+        self.scan_with(T::scan_token)
+    }
+
+    /// Parse one token with a caller-supplied function, without a wrapper type.
+    ///
+    /// The parser runs once for a valid-length token, and is not called at EOF
+    /// or for an oversized token. As with Scan, it cannot retain a token borrow.
+    /// This supports parsers parameterized by a base, schema, or other context.
+    #[inline]
+    pub fn scan_with<T>(
+        &mut self,
+        parse: impl FnOnce(&[u8]) -> Result<T, ParseError>,
+    ) -> Result<Option<T>, ScanError<S::Error>> {
         let mut scratch = [0; N];
         let mut used = 0;
         let mut started = false;
@@ -100,9 +113,7 @@ impl<S: Source, const N: usize> Scanner<S, N> {
                 return if too_long {
                     Err(ScanError::TokenTooLong { limit: N })
                 } else {
-                    T::scan_token(&scratch[..used])
-                        .map(Some)
-                        .map_err(ScanError::Parse)
+                    parse(&scratch[..used]).map(Some).map_err(ScanError::Parse)
                 };
             }
             let skip = if !started {
@@ -124,9 +135,7 @@ impl<S: Source, const N: usize> Scanner<S, N> {
                 let result = if end > N {
                     Err(ScanError::TokenTooLong { limit: N })
                 } else {
-                    T::scan_token(&token[..end])
-                        .map(Some)
-                        .map_err(ScanError::Parse)
+                    parse(&token[..end]).map(Some).map_err(ScanError::Parse)
                 };
                 self.source.consume(skip + end);
                 return result;
@@ -145,9 +154,7 @@ impl<S: Source, const N: usize> Scanner<S, N> {
                 return if too_long {
                     Err(ScanError::TokenTooLong { limit: N })
                 } else {
-                    T::scan_token(&scratch[..used])
-                        .map(Some)
-                        .map_err(ScanError::Parse)
+                    parse(&scratch[..used]).map(Some).map_err(ScanError::Parse)
                 };
             }
         }

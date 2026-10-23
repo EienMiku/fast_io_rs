@@ -42,6 +42,18 @@ fn scan_across_boundaries_and_recover_after_bad_tokens() {
 
 #[test]
 fn parsing_bounds_and_utf8() {
+    let mut customized = Scanner::new(b"yes".as_slice());
+    let expected = String::from("yes");
+    assert_eq!(
+        customized
+            .scan_with(move |token| {
+                // A FnOnce parser can consume its captured configuration.
+                let bytes = expected.into_bytes();
+                Ok(token == bytes)
+            })
+            .unwrap(),
+        Some(true)
+    );
     let mut views = Scanner::new("name 42 next".as_bytes());
     let name = views.scan_str().unwrap().unwrap();
     assert_eq!(views.require::<u8>().unwrap(), 42);
