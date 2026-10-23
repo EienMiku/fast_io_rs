@@ -59,6 +59,7 @@ def main():
     parser.add_argument("--scan-count", type=int, default=1_000_000)
     parser.add_argument("--samples", type=int, default=9)
     parser.add_argument("--payload", type=int, default=0)
+    parser.add_argument("--baseline-rust", type=Path, help="also run a previously built Rust driver")
     parser.add_argument("--output", type=Path, default=ROOT / "target/upstream-results.json")
     args = parser.parse_args()
     if min(args.count, args.scan_count, args.samples) <= 0 or args.payload < 0:
@@ -79,6 +80,11 @@ def main():
         "cpp": build / ("upstream-cpp" + suffix),
         "rust": build / "rust/release/examples" / ("upstream_compare" + suffix),
     }
+    if args.baseline_rust:
+        baseline = args.baseline_rust.resolve()
+        if not baseline.is_file() or baseline == binaries["rust"]:
+            parser.error("baseline must be a separate, existing Rust driver executable")
+        binaries["rust-baseline"] = baseline
     cpp_command = [cxx, "-std=c++26", "-O3", "-DNDEBUG", "-I", upstream / "include",
                    ROOT / "tools/upstream_compare.cpp", "-o", binaries["cpp"]]
     if os.name == "nt":
@@ -131,6 +137,8 @@ def main():
         "cxx_version": run([cxx, "--version"]),
         "rust_version": run(["rustc", "+stable", "-vV"]),
         "commands": [[str(arg) for arg in command] for command in (cpp_command, rust_command)],
+        "binaries": {name: {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+                     for name, path in binaries.items()},
         "environment": {name: os.environ.get(name) for name in
                         ("RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CARGO_PROFILE_RELEASE_LTO",
                          "CARGO_PROFILE_RELEASE_CODEGEN_UNITS", "CARGO_PROFILE_RELEASE_PANIC")},

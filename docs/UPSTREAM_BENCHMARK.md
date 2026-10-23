@@ -25,6 +25,13 @@ profile environment overrides are saved in `target/upstream-results.json`.
 The runner rejects a modified upstream checkout or an unexpected revision;
 `--allow-other-revision` permits an explicitly chosen revision and records it.
 
+For a paired Rust before/after comparison, first copy the old driver from
+`target/upstream-compare/rust/release/examples/upstream_compare` (`.exe` on Windows)
+to a separate path. After editing the implementation, pass that saved path with
+`--baseline-rust`. The runner rebuilds current Rust, verifies all three programs,
+rotates all three in the same run, and records executable SHA-256 hashes. Keep
+the driver workload unchanged between those builds.
+
 ## Measurement contract
 
 - A deterministic table of 1,024 records includes zero, unsigned MAX, signed MIN,
