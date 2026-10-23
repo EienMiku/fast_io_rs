@@ -37,6 +37,7 @@ out.flush()?;
 - Bounded, whitespace-delimited scanning with integer overflow checking and buffered input.
 - Zero-copy token views for slice inputs; explicit-endian binary integer/float I/O.
 - Bounded delimiter-separated records and UTF-8 lines with error recovery.
+- Stream copying through existing source buffers and byte-limited source views.
 - Strict and lossy UTF-16 to UTF-8 conversion and UTF-16 LE/BE byte output.
 - Stable Rust, `no_std`, and explicit allocation/std feature gates.
 
@@ -100,6 +101,10 @@ input that remain valid while later tokens are read.
 returns its length, excluding the delimiter. `read_line(&mut source, &mut buffer)`
 returns a UTF-8 view with LF/CRLF removed. Both consume oversized records before
 returning an error, allowing the next call to recover.
+
+`copy(&mut source, &mut sink)` transfers bytes through the source's existing
+buffer. Wrap a source with `take(source, byte_limit)` to read or copy a bounded
+payload without consuming the following data. Copying does not flush the sink.
 
 ## Features and checks
 

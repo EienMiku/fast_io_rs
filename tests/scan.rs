@@ -170,3 +170,38 @@ fn bounded_records_handle_crlf_utf8_and_recovery() {
     assert_eq!(read_record(&mut source, b',', &mut []).unwrap(), Some(0));
     assert_eq!(read_record(&mut source, b',', &mut []).unwrap(), None);
 }
+
+#[test]
+fn stream_copy_respects_limits_and_failed_output() {
+    use fast_io::{CopyError, Sink, SliceSink, copy, take};
+    for size in 1..=8 {
+        let mut source = Chunks {
+            bytes: b"payloadtail",
+            size,
+        };
+        let mut bytes = [0; 7];
+        let mut output = SliceSink::new(&mut bytes);
+        let mut limited = take(&mut source, 7);
+        assert_eq!(copy(&mut limited, &mut output).unwrap(), 7);
+        assert_eq!(limited.remaining(), 0);
+        assert_eq!(output.as_bytes(), b"payload");
+        assert_eq!(source.bytes, b"tail");
+    }
+    struct FailingSink;
+    impl Sink for FailingSink {
+        type Error = ();
+        fn write_all(&mut self, _: &[u8]) -> Result<(), ()> {
+            Err(())
+        }
+    }
+    let mut source = b"keep".as_slice();
+    assert!(matches!(
+        copy(&mut source, &mut FailingSink),
+        Err(CopyError::Sink(()))
+    ));
+    assert_eq!(source, b"keep");
+    assert_eq!(
+        copy(&mut take(&mut source, 0), &mut FailingSink).unwrap(),
+        0
+    );
+}
