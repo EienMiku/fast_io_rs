@@ -122,18 +122,9 @@ fn fresh(base: &str, used: &mut BTreeSet<String>) -> syn::Ident {
     format_ident!("{name}")
 }
 
-fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    let cfg = config(&input.attrs)?;
-    let path: syn::Path = cfg.path.unwrap_or_else(|| parse_quote!(::fast_io));
-    let name = &input.ident;
-    let Data::Struct(data) = &input.data else {
-        return Err(syn::Error::new_spanned(
-            name,
-            "Encode currently derives for structs; implement Encode manually for enums or unions",
-        ));
-    };
+fn collect_fields(spec: &Fields) -> syn::Result<Vec<Field>> {
     let mut fields = Vec::new();
-    for (index, field) in data.fields.iter().enumerate() {
+    for (index, field) in spec.iter().enumerate() {
         let mut skip = false;
         for attr in field.attrs.iter().filter(|a| a.path().is_ident("encode")) {
             attr.parse_nested_meta(|meta| {
@@ -160,6 +151,23 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             skip,
         });
     }
+    Ok(fields)
+}
+
+fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    let cfg = config(&input.attrs)?;
+    let path: syn::Path = cfg.path.clone().unwrap_or_else(|| parse_quote!(::fast_io));
+    let name = &input.ident;
+    if let Data::Enum(data) = &input.data {
+        return expand_enum(&input, data, &cfg, &path);
+    }
+    let Data::Struct(data) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            name,
+            "Encode cannot derive for a union",
+        ));
+    };
+    let fields = collect_fields(&data.fields)?;
     let active: Vec<_> = fields
         .iter()
         .enumerate()
@@ -285,6 +293,165 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             ) -> impl #path::Presence<::core::result::Result<(), #sink::Error>> {
                 #(batch.push(&#expressions)?;)*
                 ::core::result::Result::Ok(())
+            }
+        }
+    })
+}
+
+fn expand_enum(
+    input: &DeriveInput,
+    data: &syn::DataEnum,
+    cfg: &Config,
+    path: &syn::Path,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let name = &input.ident;
+    if cfg.format.is_some() || cfg.transparent {
+        return Err(syn::Error::new_spanned(
+            name,
+            "put enum formats or transparent on individual variants",
+        ));
+    }
+    if data.variants.is_empty() {
+        return Err(syn::Error::new_spanned(
+            name,
+            "an empty enum has no encodable values",
+        ));
+    }
+    let mut generics = input.generics.clone();
+    let mut stream_arms = Vec::new();
+    let mut batch_arms = Vec::new();
+    for variant in &data.variants {
+        let variant_name = &variant.ident;
+        let variant_cfg = config(&variant.attrs)?;
+        if variant_cfg.path.is_some() {
+            return Err(syn::Error::new_spanned(
+                variant_name,
+                "crate path belongs on the enum",
+            ));
+        }
+        let fields = collect_fields(&variant.fields)?;
+        let active: Vec<_> = fields
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| !f.skip)
+            .map(|(i, _)| i)
+            .collect();
+        let parts = if variant_cfg.transparent {
+            if active.len() != 1 {
+                return Err(syn::Error::new_spanned(
+                    variant_name,
+                    "transparent requires exactly one non-skipped field",
+                ));
+            }
+            vec![Part::Field(active[0])]
+        } else if let Some(format) = variant_cfg.format {
+            parse_format(&format, &fields)?
+        } else {
+            let mut parts = vec![Part::Text(format!("{name}::{variant_name}"))];
+            let (open, close) = match variant.fields {
+                Fields::Named(_) => (" { ", " }"),
+                Fields::Unnamed(_) => ("(", ")"),
+                Fields::Unit => ("", ""),
+            };
+            parts.push(Part::Text(open.into()));
+            for (position, &index) in active.iter().enumerate() {
+                if position != 0 {
+                    parts.push(Part::Text(", ".into()));
+                }
+                if matches!(variant.fields, Fields::Named(_)) {
+                    parts.push(Part::Text(format!("{}: ", fields[index].label)));
+                }
+                parts.push(Part::Field(index));
+            }
+            parts.push(Part::Text(close.into()));
+            parts
+        };
+        let used_fields: BTreeSet<_> = parts
+            .iter()
+            .filter_map(|p| match p {
+                Part::Field(i) => Some(*i),
+                _ => None,
+            })
+            .collect();
+        for &index in &used_fields {
+            let ty = &fields[index].ty;
+            generics
+                .make_where_clause()
+                .predicates
+                .push(parse_quote!(#ty: #path::Encode));
+        }
+        let bindings: Vec<_> = fields
+            .iter()
+            .enumerate()
+            .map(|(i, _)| {
+                if used_fields.contains(&i) {
+                    let id = format_ident!("__fast_io_field_{i}");
+                    quote!(#id)
+                } else {
+                    quote!(_)
+                }
+            })
+            .collect();
+        let pattern = match &variant.fields {
+            Fields::Named(_) => {
+                let members = fields.iter().map(|f| &f.member);
+                quote!(Self::#variant_name { #(#members: #bindings),* })
+            }
+            Fields::Unnamed(_) => quote!(Self::#variant_name(#(#bindings),*)),
+            Fields::Unit => quote!(Self::#variant_name),
+        };
+        let stream = parts.iter().filter_map(|part| match part {
+            Part::Text(text) if text.is_empty() => None,
+            Part::Text(text) => {
+                let literal = syn::LitByteStr::new(text.as_bytes(), Span::call_site());
+                Some(quote!(#path::Sink::write_all(output, #literal)?;))
+            }
+            Part::Field(index) => {
+                let binding = &bindings[*index];
+                Some(quote!(#path::write(output, #binding)?;))
+            }
+        });
+        let batch = parts.iter().filter_map(|part| match part {
+            Part::Text(text) if text.is_empty() => None,
+            Part::Text(text) => {
+                let literal = LitStr::new(text, Span::call_site());
+                Some(quote!(batch.push(#literal)?;))
+            }
+            Part::Field(index) => {
+                let binding = &bindings[*index];
+                Some(quote!(batch.push(#binding)?;))
+            }
+        });
+        stream_arms.push(quote!(#pattern => { #(#stream)* ::core::result::Result::Ok(()) }));
+        batch_arms.push(quote!(#pattern => { #(#batch)* ::core::result::Result::Ok(()) }));
+    }
+    let mut used: BTreeSet<_> = input
+        .generics
+        .params
+        .iter()
+        .map(|p| match p {
+            syn::GenericParam::Type(p) => p.ident.to_string(),
+            syn::GenericParam::Const(p) => p.ident.to_string(),
+            syn::GenericParam::Lifetime(p) => p.lifetime.ident.to_string(),
+        })
+        .collect();
+    let sink = fresh("__FastIoSink", &mut used);
+    let bytes = fresh("__FAST_IO_BYTES", &mut used);
+    let pieces = fresh("__FAST_IO_PIECES", &mut used);
+    let lifetime_name = fresh("__fast_io_value", &mut used);
+    let lifetime = syn::Lifetime::new(&format!("'{lifetime_name}"), Span::call_site());
+    let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
+    Ok(quote! {
+        impl #impl_generics #path::Encode for #name #type_generics #where_clause {
+            fn encode<#sink: #path::Sink + ?Sized>(&self, output: &mut #sink)
+                -> ::core::result::Result<(), #sink::Error>
+            {
+                match self { #(#stream_arms),* }
+            }
+            fn encode_batch<#lifetime, #sink: #path::Sink + ?Sized, const #bytes: usize, const #pieces: usize>(
+                &#lifetime self, batch: &mut #path::Batch<'_, #lifetime, #sink, #bytes, #pieces>
+            ) -> impl #path::Presence<::core::result::Result<(), #sink::Error>> {
+                match self { #(#batch_arms),* }
             }
         }
     })

@@ -45,3 +45,34 @@ fn derived_fields_formats_generics_and_conditional_capabilities() {
     assert!(const { fast_io::provided(Text::borrowed_bytes) });
     assert_eq!(Text("a").borrowed_bytes().into_value(), b"a");
 }
+
+#[derive(Encode)]
+enum Event<'a, T> {
+    Ready,
+    Value {
+        message: &'a str,
+        count: T,
+    },
+    #[encode("<{0}>")]
+    Raw(T),
+    #[encode(transparent)]
+    Text(&'a str),
+    Hidden(#[encode(skip)] NotEncode),
+}
+
+#[test]
+fn derived_enum_variants_preserve_static_field_dispatch() {
+    let mut storage = [0; 256];
+    let mut output = fast_io::SliceSink::new(&mut storage);
+    fast_io::print!(&mut output;
+        Event::<u8>::Ready, " ",
+        Event::Value { message: "x", count: 1u8 }, " ",
+        Event::Raw(4u8), " ", Event::<u8>::Text("plain"), " ",
+        Event::<u8>::Hidden(NotEncode)
+    )
+    .unwrap();
+    assert_eq!(
+        output.as_bytes(),
+        b"Event::Ready Event::Value { message: x, count: 1 } <4> plain Event::Hidden()"
+    );
+}
