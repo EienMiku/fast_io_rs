@@ -14,6 +14,11 @@ pub struct Cons<'a, H: ?Sized, T> {
     pub tail: T,
 }
 
+/// Own a temporary formatter while a deferred argument plan is alive.
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct Owned<H>(pub H);
+
 /// Join two argument subtrees without extending the per-field recursion depth.
 #[doc(hidden)]
 #[derive(Debug)]
@@ -156,6 +161,38 @@ impl<H: Encode + ?Sized, T: Arguments> Arguments for Cons<'_, H, T> {
     ) -> Result<(), S::Error> {
         batch.push(self.head)?;
         self.tail.append(batch)
+    }
+}
+
+impl<H: Encode> Arguments for Owned<H> {
+    const RESERVABLE: bool = provided(H::borrowed_bytes)
+        || (provided(H::reserve_size) && provided2(H::encode_reserved));
+    #[inline]
+    fn reserve_size(&self) -> Option<usize> {
+        Cons {
+            head: &self.0,
+            tail: End,
+        }
+        .reserve_size()
+    }
+    #[inline(always)]
+    fn encode_reserved(&self, output: &mut [u8]) -> usize {
+        Cons {
+            head: &self.0,
+            tail: End,
+        }
+        .encode_reserved(output)
+    }
+    #[inline]
+    fn stream<S: Sink + ?Sized>(&self, sink: &mut S) -> Result<(), S::Error> {
+        crate::write(sink, &self.0)
+    }
+    #[inline]
+    fn append<'v, S: Sink + ?Sized, const B: usize, const P: usize>(
+        &'v self,
+        batch: &mut Batch<'_, 'v, S, B, P>,
+    ) -> Result<(), S::Error> {
+        batch.push(&self.0)
     }
 }
 
