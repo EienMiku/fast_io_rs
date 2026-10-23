@@ -100,9 +100,19 @@ impl Encode for Radix {
             b"0123456789abcdefghijklmnopqrstuvwxyz"
         };
         let mut value = self.value;
-        for position in (prefix.len()..len).rev() {
-            output[position] = alphabet[(value % self.base as u128) as usize];
-            value /= self.base as u128;
+        let digits = &mut output[prefix.len()..len];
+        if self.base.is_power_of_two() {
+            let shift = self.base.trailing_zeros();
+            let mask = u128::from(self.base - 1);
+            for byte in digits.iter_mut().rev() {
+                *byte = alphabet[(value & mask) as usize];
+                value >>= shift;
+            }
+        } else {
+            for byte in digits.iter_mut().rev() {
+                *byte = alphabet[(value % self.base as u128) as usize];
+                value /= self.base as u128;
+            }
         }
         len
     }

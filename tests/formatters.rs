@@ -13,6 +13,34 @@ fn radix_and_json_string_escaping() {
         String::from_utf8(output).unwrap(),
         "ffffffffffffffffffffffffffffffff 0XFF 0b101 z \"a\\n\\\"\\\\\\u0000中文\""
     );
+    for (base, expected) in [
+        (2, "1".repeat(128)),
+        (4, "3".repeat(64)),
+        (8, format!("{:o}", u128::MAX)),
+        (16, "f".repeat(32)),
+        (32, format!("7{}", "v".repeat(25))),
+    ] {
+        assert_eq!(fast_io::format_bytes!(fast_io::radix(0u8, base)), b"0");
+        assert_eq!(
+            fast_io::format_bytes!(fast_io::radix(u128::MAX, base)),
+            expected.as_bytes()
+        );
+        assert_eq!(
+            fast_io::format_bytes!(fast_io::radix(u128::MAX, base).uppercase()),
+            expected.to_ascii_uppercase().as_bytes()
+        );
+        // The direct and whole-argument paths both accept exactly enough space.
+        let mut storage = vec![0; expected.len()];
+        let mut sink = fast_io::SliceSink::new(&mut storage);
+        fast_io::write(&mut sink, &fast_io::radix(u128::MAX, base)).unwrap();
+        assert_eq!(sink.as_bytes(), expected.as_bytes());
+        sink.clear();
+        fast_io::print!(&mut sink; fast_io::radix(u128::MAX, base)).unwrap();
+        assert_eq!(sink.as_bytes(), expected.as_bytes());
+        let mut too_small = fast_io::SliceSink::new(&mut storage[..expected.len() - 1]);
+        assert!(fast_io::write(&mut too_small, &fast_io::radix(u128::MAX, base)).is_err());
+        assert!(too_small.is_empty());
+    }
 }
 
 #[test]
