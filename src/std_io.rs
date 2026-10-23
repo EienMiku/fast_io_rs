@@ -33,7 +33,8 @@ impl<W: Write> Sink for Io<W> {
 
     fn write_scatter(&mut self, fragments: &[&[u8]]) -> impl Presence<io::Result<()>> {
         // Bound stack storage and stay comfortably below OS iovec limits.
-        let mut pieces = fragments.iter().filter(|p| !p.is_empty());
+        // IoSlice's Windows representation has a 32-bit length field.
+        let mut pieces = fragments.iter().flat_map(|p| p.chunks(u32::MAX as usize));
         loop {
             let mut slices = [IoSlice::new(&[]); 16];
             let mut len = 0;

@@ -84,3 +84,45 @@ fn scatter_handles_partial_writes_and_interruptions() {
     write_scatter(&mut sink, &many).unwrap();
     assert_eq!(&sink.get_ref().bytes[8..], &[b'x'; 37]);
 }
+
+#[test]
+fn persistent_buffering_and_fmt_bridge() {
+    let mut output = fast_io::Buffered::<_, 8>::new(Vec::new());
+    fast_io::print!(&mut output; "a=", 12, ";").unwrap();
+    assert_eq!(output.pending(), b"a=12;");
+    assert!(output.get_ref().is_empty());
+    fast_io::print!(&mut output; fast_io::display("text"), fast_io::debug([1, 2])).unwrap();
+    assert_eq!(output.finish().unwrap(), b"a=12;text[1, 2]");
+
+    let mut bytes = Vec::new();
+    {
+        let mut buffered = fast_io::Buffered::<_, 8>::new(&mut bytes);
+        buffered.write_all(b"drop").unwrap();
+    }
+    assert_eq!(bytes, b"drop");
+    let mut storage = [];
+    let mut full = SliceSink::new(&mut storage);
+    assert!(write(&mut full, &fast_io::display("no room")).is_err());
+}
+
+#[test]
+fn buffered_failure_does_not_replay_a_partial_prefix() {
+    struct Fails {
+        calls: usize,
+    }
+    impl Sink for Fails {
+        type Error = ();
+        fn write_all(&mut self, _: &[u8]) -> Result<(), ()> {
+            self.calls += 1;
+            Err(())
+        }
+    }
+    let mut inner = Fails { calls: 0 };
+    {
+        let mut buffered = fast_io::Buffered::<_, 8>::new(&mut inner);
+        buffered.write_all(b"pending").unwrap();
+        assert!(buffered.flush().is_err());
+        assert!(buffered.pending().is_empty());
+    }
+    assert_eq!(inner.calls, 1);
+}
