@@ -11,9 +11,9 @@ pub enum Alignment {
 /// A byte-width padded value. Width counts bytes, not Unicode display columns.
 ///
 /// Padding never truncates a value. The fill byte may be any byte; output is not
-/// necessarily UTF-8. Right/center alignment of streaming-only values measures
-/// them in a first pass, so their Encode implementation must be repeatable.
-/// Values with borrowed/reserved hooks use a one-pass reserved encoding.
+/// necessarily UTF-8. In the streaming fallback, right/center alignment measures
+/// non-borrowed values in a first pass, so their Encode implementation must be
+/// repeatable. The direct reserved path encodes the value once.
 #[derive(Clone, Copy, Debug)]
 pub struct Padding<T> {
     value: T,

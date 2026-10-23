@@ -2,7 +2,9 @@
 use crate::{Presence, Sink};
 use core::fmt;
 
-/// A fixed output buffer was too small. The failed write does not modify it.
+/// A fixed output buffer was too small. A failed write_all or write_scatter call
+/// does not modify it; a larger formatting operation may have written a prefix
+/// through earlier successful calls.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CapacityError {
     pub required: usize,
