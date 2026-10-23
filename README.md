@@ -45,7 +45,25 @@ Defaults represent absence. There is no separate capability flag to maintain.
 
 The dispatch uses RPITIT, associated constants and inline const blocks. Both arms
 still type-check; it does not require specialization or nightly features.
-See [the custom formatter example](examples/custom.rs) when available.
+See [the custom formatter example](examples/custom.rs).
+
+With the optional `derive` feature, structs can declare their layout directly:
+
+```rust
+#[derive(fast_io::Encode)]
+#[encode("User({name}, {id})")]
+struct User<'a> {
+    name: &'a str,
+    id: u64,
+}
+```
+
+The derive generates streaming and shared-batch implementations, and advertises
+reserved output exactly when all formatted fields support it. It supports named
+and tuple structs, `{field}` / `{0}` placeholders, `{{` / `}}` escapes,
+`#[encode(skip)]` fields and `#[encode(transparent)]` single-field wrappers.
+Use `#[encode(crate = "renamed_dependency")]` if the crate has been renamed.
+Enums, unions and format specifiers inside placeholders currently require a manual implementation.
 
 ## Input
 
@@ -73,6 +91,7 @@ cargo test --no-default-features
 cargo clippy --all-targets --all-features -- -D warnings
 cargo run --example hello
 cargo run --example scan_sum
+cargo run --example custom --features derive
 cargo run --release --example throughput -- 500000
 ```
 
