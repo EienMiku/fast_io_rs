@@ -15,6 +15,23 @@ fn radix_and_json_string_escaping() {
     );
 }
 
+#[test]
+fn byte_padding_uses_reserved_and_streaming_paths() {
+    let mut output = Vec::new();
+    fast_io::print!(&mut output;
+        fast_io::pad(42u8, 5).fill(b'0'), "|",
+        fast_io::pad("é", 6).center().fill(b'.'), "|",
+        fast_io::pad(fast_io::display(7), 3), "|",
+        fast_io::pad("long", 2).left()
+    )
+    .unwrap();
+    assert_eq!(output, "00042|..é..|  7|long".as_bytes());
+    let mut padded = Vec::new();
+    fast_io::print!(&mut padded; fast_io::pad(1u8, 300)).unwrap();
+    assert_eq!(padded.len(), 300);
+    assert_eq!(padded[299], b'1');
+}
+
 #[cfg(feature = "float")]
 #[test]
 fn floats_round_trip_and_preserve_special_values() {
