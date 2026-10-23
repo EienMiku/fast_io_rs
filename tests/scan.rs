@@ -279,36 +279,79 @@ fn radix_streaming_preserves_limits_recovery_and_default_hooks() {
 fn cached_decimal_prefix_preserves_parsing_and_recovery() {
     // The ordinary Chunks source has no cache hook; this exercises cache hits,
     // partial cached tokens, and refill boundaries against the same parser.
-    fn check<S: Source<Error = core::convert::Infallible>>(source: S) {
-        let mut scanner = Scanner::<_, 24>::with_capacity(source);
-        for token in [
-            "0",
-            "+255",
-            "18446744073709551615",
-            "18446744073709551616",
-            "184467440737095516160x",
-            "1844674407370955161x",
-            "+",
-            "-1",
-            "000000000000000000000042",
-        ] {
-            let actual = scanner.scan::<u64>().map_err(|error| match error {
+    fn check<
+        T: Scan + PartialEq + core::fmt::Debug,
+        S: Source<Error = core::convert::Infallible>,
+        const N: usize,
+    >(
+        source: S,
+        tokens: &[&str],
+    ) {
+        let mut scanner = Scanner::<_, N>::with_capacity(source);
+        for token in tokens {
+            let actual = scanner.scan::<T>().map_err(|error| match error {
                 ScanError::Parse(error) => error,
                 other => panic!("unexpected scan error: {other:?}"),
             });
-            assert_eq!(actual, u64::scan_token(token.as_bytes()).map(Some));
+            assert_eq!(actual, T::scan_token(token.as_bytes()).map(Some));
         }
         assert!(matches!(
-            scanner.scan::<u64>(),
-            Err(ScanError::TokenTooLong { limit: 24 })
+            scanner.scan::<T>(),
+            Err(ScanError::TokenTooLong { limit }) if limit == N
         ));
-        assert_eq!(scanner.scan::<u64>().unwrap(), Some(7));
-        assert_eq!(scanner.scan::<u64>().unwrap(), None);
+        assert_eq!(
+            scanner.scan::<T>().unwrap(),
+            Some(T::scan_token(b"7").unwrap())
+        );
+        assert_eq!(scanner.scan::<T>().unwrap(), None);
     }
+    let tokens = [
+        "0",
+        "+255",
+        "18446744073709551615",
+        "18446744073709551616",
+        "184467440737095516160x",
+        "1844674407370955161x",
+        "+",
+        "-1",
+        "000000000000000000000042",
+    ];
     let input = b" \t0 +255 18446744073709551615 18446744073709551616 184467440737095516160x 1844674407370955161x + -1 000000000000000000000042 0000000000000000000000001x 7";
-    check(input.as_slice());
-    check(fast_io::BufferedInput::<_, 17>::new(input.as_slice()));
-    check(fast_io::BufferedInput::<_, 64>::new(input.as_slice()));
+    check::<u64, _, 24>(input.as_slice(), &tokens);
+    check::<u64, _, 24>(
+        fast_io::BufferedInput::<_, 17>::new(input.as_slice()),
+        &tokens,
+    );
+    check::<u64, _, 24>(
+        fast_io::BufferedInput::<_, 64>::new(input.as_slice()),
+        &tokens,
+    );
+
+    let tokens = [
+        "-0",
+        "+0",
+        "-",
+        "--1",
+        "-000000001",
+        "-9223372036854775808",
+        "9223372036854775807",
+        "-9223372036854775809",
+        "-170141183460469231731687303715884105728",
+        "+170141183460469231731687303715884105727",
+        "-170141183460469231731687303715884105729",
+        "-17014118346046923173168730371588410572x",
+    ];
+    let input = format!(" {} {} 7", tokens.join(" "), "0".repeat(49));
+    check::<i128, _, 48>(input.as_bytes(), &tokens);
+    check::<i128, _, 48>(
+        fast_io::BufferedInput::<_, 17>::new(input.as_bytes()),
+        &tokens,
+    );
+    check::<i128, _, 48>(
+        fast_io::BufferedInput::<_, 64>::new(input.as_bytes()),
+        &tokens,
+    );
+    check::<i64, _, 48>(input.as_bytes(), &tokens);
 }
 
 #[test]

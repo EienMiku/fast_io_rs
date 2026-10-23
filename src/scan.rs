@@ -488,6 +488,48 @@ macro_rules! signed {
             fn scan_stream<S: Source, const N: usize>(
                 scanner: &mut Scanner<S, N>,
             ) -> impl Presence<Result<Option<Self>, ScanError<S::Error>>> {
+                // As above, only complete valid cached tokens bypass framing.
+                // The initial positive prefix fits both signs; accumulation
+                // then uses the actual sign so signed MIN is representable.
+                if const { crate::provided(S::buffered_bytes) } {
+                    let parsed = (|| {
+                        let bytes = scanner.source.buffered_bytes().into_value();
+                        let start = bytes.iter().take_while(|b| b.is_ascii_whitespace()).count();
+                        let token = bytes.get(start..)?;
+                        let negative = token.first() == Some(&b'-');
+                        let sign = usize::from(negative || token.first() == Some(&b'+'));
+                        let mut cursor = sign;
+                        let mut value: Self = 0;
+                        let safe_digits = (<$ty>::BITS as usize - 1) * 30103 / 100000;
+                        while cfg!(target_pointer_width = "64") && cursor - sign + 8 <= safe_digits && token.len() - cursor >= 8 {
+                            let Some(chunk) = decimal_eight(&token[cursor..]) else { break; };
+                            value = value.wrapping_mul(100_000_000u32 as Self).wrapping_add(chunk as Self);
+                            cursor += 8;
+                        }
+                        if negative { value = -value; }
+                        while let Some(&byte) = token.get(cursor) {
+                            let digit = byte.wrapping_sub(b'0');
+                            if digit > 9 {
+                                if cursor != sign && cursor <= N && byte.is_ascii_whitespace() {
+                                    return Some((start + cursor, value));
+                                }
+                                return None;
+                            }
+                            let multiplied = value.checked_mul(10)?;
+                            value = if negative {
+                                multiplied.checked_sub(digit as Self)?
+                            } else {
+                                multiplied.checked_add(digit as Self)?
+                            };
+                            cursor += 1;
+                        }
+                        None
+                    })();
+                    if let Some((used, value)) = parsed {
+                        scanner.source.consume(used);
+                        return Ok(Some(value));
+                    }
+                }
                 scanner.scan_fold_impl((0 as Self, false, 0usize, false), |(mut value, mut negative, offset, mut digits), chunk| {
                     let start = if offset == 0 {
                         negative = chunk[0] == b'-';
