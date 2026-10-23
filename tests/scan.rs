@@ -90,6 +90,53 @@ fn parsing_bounds_and_utf8() {
     assert_eq!(scanner.require::<f32>().unwrap(), 1.25);
 }
 
+#[test]
+fn incremental_tokens_fold_without_scratch_and_recover_after_errors() {
+    for size in 1..=8 {
+        let mut scanner = Scanner::<_, 8>::with_capacity(Chunks {
+            bytes: "  🦀ab badtoolong bad ok".as_bytes(),
+            size,
+        });
+        let bytes = scanner
+            .scan_fold(Vec::new(), |mut out, chunk| {
+                out.extend_from_slice(chunk);
+                Ok(out)
+            })
+            .unwrap()
+            .unwrap();
+        assert_eq!(bytes, "🦀ab".as_bytes());
+        assert!(matches!(
+            scanner.scan_fold((), |(), _| Err(ParseError::InvalidValue)),
+            Err(ScanError::TokenTooLong { limit: 8 })
+        ));
+        let mut calls = 0;
+        assert!(matches!(
+            scanner.scan_fold((), |(), _| {
+                calls += 1;
+                Err(ParseError::InvalidValue)
+            }),
+            Err(ScanError::Parse(ParseError::InvalidValue))
+        ));
+        assert_eq!(calls, 1);
+        assert_eq!(
+            scanner.scan_fold(0, |n, part| Ok(n + part.len())).unwrap(),
+            Some(2)
+        );
+        assert_eq!(
+            scanner
+                .scan_fold((), |(), _| panic!("callback at EOF"))
+                .unwrap(),
+            None
+        );
+    }
+    // An enormous type-level limit does not become a stack allocation here.
+    let mut scanner = Scanner::<_, { usize::MAX }>::with_capacity(b"payload".as_slice());
+    assert_eq!(
+        scanner.scan_fold(0, |n, part| Ok(n + part.len())).unwrap(),
+        Some(7)
+    );
+}
+
 #[cfg(feature = "std")]
 #[test]
 fn buffered_input_retries_interrupted_reads() {

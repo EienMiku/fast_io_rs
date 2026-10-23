@@ -107,6 +107,13 @@ Use `scanner.scan_radix::<u64>(16)` for an explicit base from 2 through 36
 For a slice source, `scan_bytes()` and `scan_str()` return views into the original
 input that remain valid while later tokens are read.
 
+`scan_fold(initial, callback)` incrementally folds borrowed token chunks without
+allocating token scratch space. This allows a large configured token limit for
+checksums or growable output without a correspondingly large stack buffer. The
+callback returns `Result<Accumulator, ParseError>`; chunk boundaries can split
+UTF-8 characters. Callback errors and overlong tokens are consumed to the next
+token boundary so a later scan can recover.
+
 `read_record(&mut source, delimiter, &mut buffer)` reads a bounded record and
 returns its length, excluding the delimiter. `read_line(&mut source, &mut buffer)`
 returns a UTF-8 view with LF/CRLF removed. Both consume oversized records before

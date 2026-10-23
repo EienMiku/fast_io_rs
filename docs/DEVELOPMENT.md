@@ -17,7 +17,9 @@
   leaving these as separate functions materialized field-pointer lists and
   measurably slowed derived structs/enums in the local benchmark.
 - `Source` exposes a buffered byte slice. `Scanner` parses contiguous tokens in
-  place and joins split tokens into bounded scratch storage.
+  place and joins split tokens into bounded scratch storage. `scan_fold` instead
+  visits borrowed chunks with no token scratch array, retaining the length limit
+  and consuming failed tokens before reporting callback/length errors.
 
 All memory access in this crate is currently safe Rust. Optional dependencies
 retain their own implementation and licensing.
@@ -28,7 +30,7 @@ Presence and forwarding; slice/Vec/std sinks; integer/float/string formatting;
 fixed/scientific float precision with core::fmt conversion and reserved bounds;
 radix, quoted strings and byte-width alignment; output batches and composition;
 persistent buffering; locked stdio and owned formatting macros; std fmt adapters;
-bounded scanning, parameterized parsers and base-2-through-36 integers; borrowed
+bounded scanning, incremental token folds, parameterized parsers and base-2-through-36 integers; borrowed
 slice tokens; bounded records/UTF-8 lines; buffered input; explicit-endian
 binary primitive I/O; stream copy and byte-limited source views; UTF-16/UTF-8
 adapters; raw partial/exact reads; existing BufReader reuse; optional struct/enum derive; examples

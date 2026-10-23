@@ -174,6 +174,77 @@ impl<S: Source, const N: usize> Scanner<S, N> {
         self.scan()?.ok_or(ScanError::EndOfInput)
     }
 
+    /// Fold one token's borrowed chunks into an accumulator without scratch storage.
+    ///
+    /// The configured token length limit still applies, but this method does
+    /// not allocate a `[u8; N]` array. Chunk boundaries are arbitrary and can
+    /// split UTF-8 sequences. The callback sees only nonempty token chunks.
+    ///
+    /// A callback error stops further callbacks and consumes the rest of the
+    /// token before returning that error. Exceeding the length limit instead
+    /// returns TokenTooLong, even if a callback had already failed. Callbacks
+    /// can therefore observe a prefix of a token that ultimately fails.
+    /// At clean EOF the initial accumulator is dropped and None is returned.
+    pub fn scan_fold<A>(
+        &mut self,
+        initial: A,
+        mut fold: impl FnMut(A, &[u8]) -> Result<A, ParseError>,
+    ) -> Result<Option<A>, ScanError<S::Error>> {
+        let mut state = Ok(initial);
+        let mut used = 0;
+        let mut started = false;
+        let mut too_long = false;
+        loop {
+            let bytes = self.source.fill_buf().map_err(ScanError::Source)?;
+            if bytes.is_empty() {
+                return if !started {
+                    Ok(None)
+                } else if too_long {
+                    Err(ScanError::TokenTooLong { limit: N })
+                } else {
+                    state.map(Some).map_err(ScanError::Parse)
+                };
+            }
+            let skip = if !started {
+                bytes
+                    .iter()
+                    .take_while(|byte| byte.is_ascii_whitespace())
+                    .count()
+            } else {
+                0
+            };
+            if skip == bytes.len() {
+                self.source.consume(skip);
+                continue;
+            }
+            let token = &bytes[skip..];
+            let end = token
+                .iter()
+                .position(u8::is_ascii_whitespace)
+                .unwrap_or(token.len());
+            let complete = end < token.len();
+            started = true;
+            if !too_long {
+                if end > N - used {
+                    too_long = true;
+                } else {
+                    used += end;
+                    if end != 0 {
+                        state = state.and_then(|accumulator| fold(accumulator, &token[..end]));
+                    }
+                }
+            }
+            self.source.consume(skip + end);
+            if complete {
+                return if too_long {
+                    Err(ScanError::TokenTooLong { limit: N })
+                } else {
+                    state.map(Some).map_err(ScanError::Parse)
+                };
+            }
+        }
+    }
+
     /// Read one integer token in an explicit base; invalid bases do not consume input.
     pub fn scan_radix<T: ScanRadix>(
         &mut self,
