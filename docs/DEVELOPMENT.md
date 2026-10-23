@@ -1,41 +1,37 @@
-# Development handoff
+# Development notes
 
-## Session constraints
+## Architecture
 
-Work was authorized through 2026-10-24 01:00 UTC+08:00 (2026-10-23 17:00 UTC).
-Implement as much useful fast_io functionality as feasible, using focused tests and
-frequent commits. Upgrade both stable and nightly toolchains. Stable is the implementation target.
+- `Presence<R>` attaches availability to a hook's return type. Ordinary results
+  are present, private `Missing<R>` values are absent.
+- `Encode` provides streaming, borrowed, reserved and composite batch paths.
+- `Sink` provides all-or-error-prefix writes and optional scatter output.
+- `Batch` stores borrowed slices or scratch offsets. It does not store references
+  into itself. Adjacent scratch regions merge into one fragment.
+- `Arguments` is a statically typed list used by print macros.
+- `Source` exposes a buffered byte slice. `Scanner` parses contiguous tokens in
+  place and joins split tokens into bounded scratch storage.
 
-Repository: D:\\Coding\\fast_io_rs
-Conversation: 01a16423-850f-7f82-8dcf-2964c75b44cd
-Requested remote: https://github.com/EienMiku/fast_io_rs
+All memory access in this crate is currently safe Rust. Optional dependencies
+retain their own implementation and licensing.
 
-## Design decisions
+## Implemented
 
-The user proposed a verified stable-Rust capability mechanism:
-- Trait hooks return impl Presence<R>.
-- Default implementations return a private Missing<R> marker.
-- An ordinary R implements Presence<R> with PRESENT = true.
-- A const helper infers the return type from a function item without calling it.
-- An inline const condition dispatches; both branches remain type checked.
-- Borrowed outputs, generic methods, downstream implementations and forwarding were verified.
+Presence and forwarding; basic sinks; integer/float/string formatting; radix and
+quoted strings; output batches and composition; persistent buffering; std fmt
+adapters; bounded scanning; standard buffered input; examples and an initial
+reproducible in-memory benchmark.
 
-Formatting exposes a mandatory streaming fallback plus optional borrowed-byte and
-reserved-buffer paths. A batch planner stores borrowed fragments and scratch offsets
-without self-references, then flushes to a sink. Device fast paths also use Presence.
-Avoid nightly generic const expressions; fixed bounded scratch storage is acceptable.
+## Validation policy
 
-## Initial implementation sequence
+Use small, focused tests for I/O correctness, boundary values and dispatch.
+CI covers stable Rust on Linux, Windows and macOS, plus MSRV and nightly on Linux.
+Do not duplicate implementation details in tests or invent performance thresholds.
 
-1. Presence protocol and basic sink/formatter contracts.
-2. Built-in strings, bytes, integers; std output and in-memory sinks.
-3. Scratch/scatter planner and heterogeneous print macros.
-4. Buffering and formatter adapters.
-5. Focused boundary tests, examples, small reproducible benchmarks, CI.
-6. Additional useful functionality if time remains.
+## Next priorities
 
-## Progress
-
-- Independent repository initialized.
-- Toolchain upgrades running.
-- No implementation yet.
+- Measure and optimize memory targets independently from scatter-capable devices.
+- Add an ergonomic custom formatter example and optional derive support.
+- Expand useful formatting adapters, documenting exact behavior.
+- Document benchmark methodology and limitations, and test relevant feature sets.
+- Consider native backends/transcoding only after the core contracts are settled.

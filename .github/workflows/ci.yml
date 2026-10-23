@@ -1,0 +1,31 @@
+name: Rust
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            toolchain: stable
+          - os: windows-latest
+            toolchain: stable
+          - os: macos-latest
+            toolchain: stable
+          - os: ubuntu-latest
+            toolchain: "1.85.0"
+          - os: ubuntu-latest
+            toolchain: nightly
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup toolchain install ${{ matrix.toolchain }} --profile minimal --component rustfmt,clippy
+      - run: cargo +${{ matrix.toolchain }} test --all-features
+      - run: cargo +${{ matrix.toolchain }} test --no-default-features
+      - run: cargo +${{ matrix.toolchain }} check --no-default-features --features alloc,float
+      - if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
+        run: cargo +stable fmt --all -- --check
+      - if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
+        run: cargo +stable clippy --all-targets --all-features -- -D warnings

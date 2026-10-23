@@ -7,12 +7,12 @@ mod sealed {
 /// Primitive unsigned integers accepted by radix formatters.
 pub trait Unsigned: sealed::Sealed {
     #[doc(hidden)]
-    fn as_u128(self) -> u128;
+    fn into_u128(self) -> u128;
 }
 macro_rules! unsigned {
     ($($t:ty),*) => {$(
         impl sealed::Sealed for $t {}
-        impl Unsigned for $t { fn as_u128(self) -> u128 { self as u128 } }
+        impl Unsigned for $t { fn into_u128(self) -> u128 { self as u128 } }
     )*};
 }
 unsigned!(u8, u16, u32, u64, u128, usize);
@@ -28,7 +28,7 @@ pub struct Radix {
 pub fn radix<T: Unsigned>(value: T, base: u8) -> Radix {
     assert!((2..=36).contains(&base), "radix must be in 2..=36");
     Radix {
-        value: value.as_u128(),
+        value: value.into_u128(),
         base,
         uppercase: false,
         prefix: false,
