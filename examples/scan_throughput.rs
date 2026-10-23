@@ -1,5 +1,5 @@
 //! Run with: cargo run --release --example scan_throughput -- 200000
-use fast_io::{Input, Scanner};
+use fast_io::{BufferedInput, Input, Scanner};
 use std::{hint::black_box, time::Instant};
 
 fn standard(data: &[u8]) -> u64 {
@@ -37,19 +37,22 @@ fn main() {
         data.len()
     );
     type Parser = fn(&[u8]) -> u64;
-    let parsers: [(&str, Parser); 3] = [
+    let parsers: [(&str, Parser); 4] = [
         ("std UTF-8 + split + parse", standard),
         ("Scanner<&[u8]>", |bytes| scan(bytes)),
         ("Scanner<Input<&[u8]>>", |bytes| scan(Input::new(bytes))),
+        ("Scanner<BufferedInput<_, 8>>", |bytes| {
+            scan(BufferedInput::<_, 8>::new(bytes))
+        }),
     ];
     for (_, parser) in parsers {
         assert_eq!(black_box(parser(black_box(&data))), expected);
     }
-    let mut times = [[0u128; 3]; 5];
+    let mut times = [[0u128; 4]; 5];
     for (round, samples) in times.iter_mut().enumerate() {
         // Rotate the first parser so no implementation always runs first.
-        for step in 0..3 {
-            let index = (round + step) % 3;
+        for step in 0..parsers.len() {
+            let index = (round + step) % parsers.len();
             let start = Instant::now();
             let checksum = black_box(parsers[index].1(black_box(&data)));
             samples[index] = start.elapsed().as_nanos();
