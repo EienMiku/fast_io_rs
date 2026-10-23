@@ -107,6 +107,15 @@ overlapping ranges and a substantial remaining gap to C++. The preserved
 [raw comparison](benchmarks/upstream-prefix-2026-10-24.json) includes the baseline
 binary hash and the uncommitted `src/scan.rs` status from the experiment.
 
+An additional 64-bit path converts the fitting prefix in groups of eight ASCII
+digits, with scalar fallback for invalid groups. Its separate paired run measured
+26.59 ns/token versus 32.70 for the scalar-prefix binary (about 19% lower median);
+C++ measured 15.79. Ranges were 21.63–44.37, 26.21–41.81 and 11.62–35.39 respectively.
+The [raw group-conversion comparison](benchmarks/upstream-chunks-2026-10-24.json)
+again retains every sample. These noisy snapshots do not establish an improvement
+on every input or target. A focused byte-lane check covers all 256 byte values in
+each of the eight positions, including non-ASCII bytes and invalid controls.
+
 ## Current upstream build limitation
 
 At revision `7a6fa9b680de8355f9f743e0f8950492cf5a42f0`, including `fast_io.h`

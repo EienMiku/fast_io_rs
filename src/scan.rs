@@ -322,6 +322,22 @@ fn radix_digit(byte: u8, radix: u32, offset: usize) -> Result<u8, ParseError> {
     }
 }
 
+// Convert eight validated ASCII digits using parallel byte lanes. A caller
+// falls back to scalar validation on None, retaining the exact error offset.
+#[inline]
+fn decimal_eight(bytes: &[u8]) -> Option<u32> {
+    let word = u64::from_le_bytes(bytes[..8].try_into().unwrap());
+    let above = word.wrapping_add(0x4646_4646_4646_4646);
+    let below = word.wrapping_sub(0x3030_3030_3030_3030);
+    if (above | below) & 0x8080_8080_8080_8080 != 0 {
+        return None;
+    }
+    let digits = word & 0x0f0f_0f0f_0f0f_0f0f;
+    let pairs = (digits * 10 + (digits >> 8)) & 0x00ff_00ff_00ff_00ff;
+    let quads = (pairs * 100 + (pairs >> 16)) & 0x0000_ffff_0000_ffff;
+    Some((quads * 10_000 + (quads >> 32)) as u32)
+}
+
 macro_rules! unsigned {
     ($($ty:ty),*) => {$(
         impl Scan for $ty {
@@ -351,9 +367,15 @@ macro_rules! unsigned {
                 // Every prefix this short fits, even when more digits follow.
                 // floor(BITS * log10(2)) is a safe bound for all integer widths.
                 let safe_end = token.len().min(start + (<$ty>::BITS as usize * 30103 / 100000));
-                for (index, &byte) in token[start..safe_end].iter().enumerate() {
+                let mut cursor = start;
+                while cfg!(target_pointer_width = "64") && safe_end - cursor >= 8 {
+                    let Some(chunk) = decimal_eight(&token[cursor..]) else { break; };
+                    value = value.wrapping_mul(100_000_000u32 as Self).wrapping_add(chunk as Self);
+                    cursor += 8;
+                }
+                for (index, &byte) in token[cursor..safe_end].iter().enumerate() {
                     let digit = byte.wrapping_sub(b'0');
-                    if digit > 9 { return Err(ParseError::InvalidDigit { offset: start + index }); }
+                    if digit > 9 { return Err(ParseError::InvalidDigit { offset: cursor + index }); }
                     value = value.wrapping_mul(10).wrapping_add(digit as Self);
                 }
                 for (index, &byte) in token[safe_end..].iter().enumerate() {
@@ -419,9 +441,15 @@ macro_rules! signed {
                 if token.len() == start { return Err(ParseError::Empty); }
                 let mut value: Self = 0;
                 let safe_end = token.len().min(start + ((<$ty>::BITS as usize - 1) * 30103 / 100000));
-                for (index, &byte) in token[start..safe_end].iter().enumerate() {
+                let mut cursor = start;
+                while cfg!(target_pointer_width = "64") && safe_end - cursor >= 8 {
+                    let Some(chunk) = decimal_eight(&token[cursor..]) else { break; };
+                    value = value.wrapping_mul(100_000_000u32 as Self).wrapping_add(chunk as Self);
+                    cursor += 8;
+                }
+                for (index, &byte) in token[cursor..safe_end].iter().enumerate() {
                     let digit = byte.wrapping_sub(b'0');
-                    if digit > 9 { return Err(ParseError::InvalidDigit { offset: start + index }); }
+                    if digit > 9 { return Err(ParseError::InvalidDigit { offset: cursor + index }); }
                     value = value.wrapping_mul(10).wrapping_add(digit as Self);
                 }
                 if negative { value = value.wrapping_neg(); }

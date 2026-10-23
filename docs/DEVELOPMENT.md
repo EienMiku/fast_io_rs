@@ -41,6 +41,9 @@
   Complete decimal parsers accumulate a provably fitting prefix without overflow
   checks and check each remaining digit. This also applies to long tokens rather
   than repeating overflow checks for the safe prefix of every 20-digit u64.
+  On 64-bit targets this fitting prefix converts validated groups of eight ASCII
+  digits using byte lanes in a u64. Invalid groups fall back to scalar validation
+  for the original error offset; smaller targets retain scalar accumulation.
 - `Reader` is the minimal raw-device input trait. `BufferedInput<R, N>` adds
   fixed-capacity buffering without std/alloc, exposes `Source`, and bypasses an
   empty buffer for large direct reads. `Io<R>` adapts std readers and retries

@@ -150,6 +150,34 @@ fn streaming_integer_hooks_match_complete_parsers_at_boundaries() {
 }
 
 #[test]
+fn decimal_chunks_validate_every_byte_lane() {
+    for seed in [*b"00000000", *b"99999999", *b"12345678"] {
+        for lane in 0..8 {
+            for byte in 0..=u8::MAX {
+                // Keep a leading sign outside the eight-byte chunk so a '+'
+                // or '-' in its first lane is an invalid digit, not a sign.
+                let mut token = [b'+'; 9];
+                token[1..].copy_from_slice(&seed);
+                token[lane + 1] = byte;
+                let expected =
+                    token[1..]
+                        .iter()
+                        .enumerate()
+                        .try_fold(0u64, |value, (offset, &b)| {
+                            if b.is_ascii_digit() {
+                                Ok(value * 10 + u64::from(b - b'0'))
+                            } else {
+                                Err(ParseError::InvalidDigit { offset: offset + 1 })
+                            }
+                        });
+                assert_eq!(u64::scan_token(&token), expected, "{token:?}");
+                assert_eq!(i64::scan_token(&token), expected.map(|n| n as i64));
+            }
+        }
+    }
+}
+
+#[test]
 fn incremental_tokens_fold_without_scratch_and_recover_after_errors() {
     for size in 1..=8 {
         let mut scanner = Scanner::<_, 8>::with_capacity(Chunks {
