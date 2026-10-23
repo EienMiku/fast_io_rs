@@ -1,13 +1,13 @@
 # Performance snapshots
 
 These are paired, local microbenchmarks, not a claim of parity with C++ fast_io
-or a prediction of disk, terminal, or network throughput.
+or a prediction of uncached disk, terminal, or network throughput.
 
 ## Environment and reproduction
 
 - Windows x86-64, Intel Core i7-11800H @ 2.30 GHz.
 - Rust 1.99.1 (`58cf8f9c3`, 2026-10-13), stable, default release profile.
-- Five samples after warm-up; report each implementation's median.
+- Five samples for memory benchmarks, three for file output; report medians.
 - Formatting runs alternate implementation order; the current scanner benchmark
   rotates it. Older scanner snapshots below used a fixed order without a warm-up.
 - No CPU affinity, fixed frequency, or isolated machine was used. Compare paired
@@ -16,6 +16,7 @@ or a prediction of disk, terminal, or network throughput.
 ```text
 cargo run --release --example throughput -- 500000
 cargo run --release --example scan_throughput -- 200000
+cargo run --release --example file_throughput -- 100000
 ```
 
 ## Formatting
@@ -64,7 +65,29 @@ error-heavy inputs, many tiny source buffers, or real I/O latency.
 
 ## What remains to measure
 
-- File, pipe and socket output, including partial writes and scatter batching.
+## Buffered file output
+
+The file example writes the same mixed records through 8192-byte buffers:
+`std::io::BufWriter<File>` with `writeln!` versus `Buffered<Io<File>, 8192>` with
+`fast_io::println!`. It creates two fresh temporary files, warms up, alternates
+three paired samples, and compares every output byte. File creation, seek and
+truncation are outside timing; buffer setup and final flush are inside timing.
+Files are removed afterwards. It does not call `sync_all`, so OS caching is a
+major factor and these are not durable-storage bandwidth measurements.
+
+For 100,000 records / 7,977,658 matching bytes in this environment:
+
+| Implementation | ns/record | MB/s |
+| --- | ---: | ---: |
+| std BufWriter + writeln! | 117.00 | 681.82 |
+| fast_io Buffered + println! | 75.01 | 1063.59 |
+
+The result supports the contiguous-buffer formatting path for this workload.
+Different filesystems, devices, buffer sizes and scheduling can change it.
+
+## What remains to measure
+
+- Unbuffered file, pipe and socket output, including scatter batching.
 - Mixed-length strings, derived types and formatting adapters.
 - Small source buffers, near-limit tokens and floating-point inputs.
 - Allocation counts, generated machine code, and comparable C++ fast_io cases.

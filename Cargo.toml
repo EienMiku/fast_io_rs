@@ -42,6 +42,10 @@ required-features = ["std", "derive"]
 name = "scan_throughput"
 required-features = ["std"]
 
+[[example]]
+name = "file_throughput"
+required-features = ["std"]
+
 [lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
 missing_debug_implementations = "warn"

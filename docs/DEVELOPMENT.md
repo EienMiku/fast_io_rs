@@ -26,7 +26,7 @@ persistent buffering; locked stdio and owned formatting macros; std fmt adapters
 bounded scanning and borrowed slice tokens; bounded records/UTF-8 lines; buffered input; explicit-endian
 binary primitive I/O; stream copy and byte-limited source views; UTF-16/UTF-8
 adapters; optional struct/enum derive; examples
-and reproducible formatting/scanning microbenchmarks.
+and reproducible formatting/scanning/file-output microbenchmarks.
 
 The derive supports per-type/per-variant layouts, skipping fields, transparent
 wrappers, generics and renamed dependencies. Structs propagate reserve hooks;
@@ -71,8 +71,8 @@ See [PERFORMANCE.md](PERFORMANCE.md) for measured snapshots and limitations.
 
 ## Next priorities
 
-- Validate device paths with a real file/pipe benchmark before adding native
-  handles or more complex OS specialization.
+- Measure pipe/socket/scatter paths before adding native handles or more complex
+  OS specialization; the buffered file benchmark already checks matching bytes.
 - Improve usability and document sharp edges before broadening the API further.
 - Native handles, async I/O, locale rules and additional encodings remain outside
   the implemented scope. The crate is unpublished and its API remains provisional.
