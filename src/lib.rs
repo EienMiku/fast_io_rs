@@ -15,6 +15,10 @@ pub mod fmt_bridge;
 pub mod memory;
 pub mod quoted;
 pub mod radix;
+pub mod scan;
+pub mod source;
+#[cfg(feature = "std")]
+pub mod std_input;
 #[cfg(feature = "std")]
 pub mod std_io;
 
@@ -31,6 +35,10 @@ pub use memory::{CapacityError, SliceSink};
 pub use presence::{Presence, provided, provided0, provided2, provided3};
 pub use quoted::{Quoted, quoted};
 pub use radix::{Radix, bin, hex, oct, radix};
+pub use scan::{ParseError, Scan, ScanError, Scanner};
 pub use sink::{Sink, write_scatter};
+pub use source::Source;
+#[cfg(feature = "std")]
+pub use std_input::Input;
 #[cfg(feature = "std")]
 pub use std_io::Io;
