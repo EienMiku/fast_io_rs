@@ -18,6 +18,7 @@ const EMPTY: Piece<'static> = Piece::Borrowed(&[]);
 /// On an I/O error, pending state is discarded to avoid replaying a partially
 /// written prefix. The underlying sink may have consumed part of that batch.
 #[derive(Debug)]
+#[must_use = "call finish to emit pending output"]
 pub struct Batch<'s, 'v, S: Sink + ?Sized, const BYTES: usize = 1024, const PIECES: usize = 32> {
     sink: &'s mut S,
     scratch: [u8; BYTES],

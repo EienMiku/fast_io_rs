@@ -6,6 +6,11 @@ Composable, statically dispatched I/O and formatting for stable Rust, inspired b
 This is an early, independent implementation. APIs are not stable, the crate is
 not published, and feature/performance parity with upstream is not claimed.
 
+```toml
+[dependencies]
+fast-io = { git = "https://github.com/EienMiku/fast_io_rs", features = ["derive"] }
+```
+
 ```rust
 use fast_io::{Buffered, Io, Sink};
 
@@ -23,12 +28,15 @@ out.flush()?;
 
 - Integers through 128 bits, UTF-8 strings/chars, raw bytes, bools and optional values.
 - Binary/octal/hexadecimal/general radix output and JSON-compatible quoted strings.
+- Byte-width alignment and padding, with conditional reserved output.
 - Optional shortest round-trip float formatting through [zmij](https://github.com/dtolnay/zmij).
 - Borrowed fragments and generated scratch data combined into bounded scatter batches.
 - Nested `concat!` and `join` values flatten into the outer batch.
 - Fixed-capacity output, growable byte vectors, std writers and persistent buffering.
 - `Display`, `Debug`, and `format_args!` interoperability.
 - Bounded, whitespace-delimited scanning with integer overflow checking and buffered input.
+- Zero-copy token views for slice inputs; explicit-endian binary integer/float I/O.
+- Strict and lossy UTF-16 to UTF-8 conversion and UTF-16 LE/BE byte output.
 - Stable Rust, `no_std`, and explicit allocation/std feature gates.
 
 ## Custom formatters
@@ -63,7 +71,13 @@ reserved output exactly when all formatted fields support it. It supports named
 and tuple structs, `{field}` / `{0}` placeholders, `{{` / `}}` escapes,
 `#[encode(skip)]` fields and `#[encode(transparent)]` single-field wrappers.
 Use `#[encode(crate = "renamed_dependency")]` if the crate has been renamed.
-Enums, unions and format specifiers inside placeholders currently require a manual implementation.
+Enums support streaming and shared-batch output, with per-variant format/transparent
+attributes. Enum-wide reserved output, empty enums, unions and format specifiers
+inside placeholders currently require a manual implementation.
+
+With `std`, `fast_io::println!("answer=", 42)?` locks stdout for the operation;
+`eprint!` / `eprintln!` target stderr. With `alloc`, `format_bytes!` returns a Vec,
+and `format_text!` validates UTF-8 and returns a Result containing a String.
 
 ## Input
 
@@ -78,6 +92,8 @@ assert_eq!((a, b, c), (123, -45, true));
 `Scanner::<_, N>::with_capacity(source)` changes that limit. Contiguous tokens
 are parsed in place; tokens crossing source buffers use bounded scratch storage.
 Oversized and invalid tokens are consumed so later scans can recover.
+For a slice source, `scan_bytes()` and `scan_str()` return views into the original
+input that remain valid while later tokens are read.
 
 ## Features and checks
 
@@ -93,14 +109,16 @@ cargo run --example hello
 cargo run --example scan_sum
 cargo run --example custom --features derive
 cargo run --release --example throughput -- 500000
+cargo run --release --example scan_throughput -- 200000
 ```
 
 The benchmark measures formatting into a reused Vec, not disk or OS throughput.
 Performance is being measured and tuned; no universal speedup is claimed.
+See [measured snapshots and methodology](docs/PERFORMANCE.md).
 
 ## Scope
 
-Native OS handle types, transcoding, locale-aware formatting, asynchronous I/O,
+Native OS handle types, codecs beyond UTF-8/UTF-16, locale-aware formatting, asynchronous I/O,
 and the full C++ fast_io customization surface are not implemented.
 Output errors can follow a partially written prefix; callers must not retry the
 whole operation blindly. Explicitly flush/finish persistent buffers to observe errors.
