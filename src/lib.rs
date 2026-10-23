@@ -3,6 +3,9 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(feature = "derive")]
+pub use fast_io_derive::Encode;
+
 #[doc(hidden)]
 pub mod arguments;
 pub mod batch;
