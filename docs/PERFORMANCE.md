@@ -63,8 +63,6 @@ overflow. Short token lengths that prove overflow impossible use a simpler
 arithmetic loop. This dataset does not characterize floats, Unicode processing,
 error-heavy inputs, many tiny source buffers, or real I/O latency.
 
-## What remains to measure
-
 ## Buffered file output
 
 The file example writes the same mixed records through 8192-byte buffers:

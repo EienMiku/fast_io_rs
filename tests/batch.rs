@@ -85,6 +85,18 @@ fn compositions_flatten_into_the_outer_batch() {
     }
     assert!(reserved(&fast_io::concat!(1u32, "x")));
     assert!(!reserved(&fast_io::concat!(Stream)));
+    assert!(reserved(&Some(123u32)));
+    assert!(!reserved(&Some(Stream)));
+    assert!(reserved(&fast_io::join(&[1u8, 2, 3], ",")));
+    assert!(!reserved(&fast_io::join(&[Stream], ",")));
+    assert_eq!(
+        fast_io::format_bytes!(fast_io::join(&[1u8, 2, 3], ","), Some("!"), None::<u8>),
+        b"1,2,3!"
+    );
+    assert_eq!(
+        fast_io::format_bytes!(fast_io::join(&[] as &[u8], ",")),
+        b""
+    );
     let text = String::from("nested");
     let words = ["one", "two"];
     let mut sink = Recorder::default();

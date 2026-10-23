@@ -11,7 +11,8 @@
 - `Batch` stores borrowed slices or scratch offsets. It does not store references
   into itself. Adjacent scratch regions merge into one fragment.
 - `Arguments` is a statically typed list used by print macros. Its constant
-  `RESERVABLE` propagates field capabilities through composite formatters.
+  `RESERVABLE` propagates field capabilities through composite formatters,
+  including joins and optional values.
 - `Source` exposes a buffered byte slice. `Scanner` parses contiguous tokens in
   place and joins split tokens into bounded scratch storage.
 
