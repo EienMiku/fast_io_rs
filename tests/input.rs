@@ -60,3 +60,21 @@ fn fixed_input_consumes_prefetch_before_bypassing_the_buffer() {
     assert_eq!(source.fill_buf().unwrap(), b"kl");
     assert_eq!(source.buffer(), b"kl");
 }
+
+#[cfg(feature = "std")]
+#[test]
+fn input_buffers_interoperate_with_std_without_losing_prefetched_bytes() {
+    use std::io::{self, BufRead, Read};
+    fn check(mut input: impl Source<Error = io::Error> + BufRead) {
+        let mut text = String::new();
+        assert_eq!(BufRead::read_line(&mut input, &mut text).unwrap(), 5);
+        assert_eq!(text, "head\n");
+        assert_eq!(Scanner::new(&mut input).require::<u8>().unwrap(), 42);
+        let mut rest = Vec::new();
+        Read::read_to_end(&mut input, &mut rest).unwrap();
+        assert_eq!(rest, b"\ntail");
+    }
+    let bytes = b"head\n42\ntail".as_slice();
+    check(fast_io::Input::with_capacity(8, bytes));
+    check(BufferedInput::<_, 8>::new(fast_io::Io::new(bytes)));
+}

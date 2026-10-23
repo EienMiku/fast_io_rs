@@ -69,3 +69,33 @@ impl<R: Read> Source for Input<R> {
         }
     }
 }
+
+impl<R: Read> Read for Input<R> {
+    fn read(&mut self, destination: &mut [u8]) -> io::Result<usize> {
+        crate::read(self, destination)
+    }
+}
+
+impl<R: Read> BufRead for Input<R> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        Source::fill_buf(self)
+    }
+    fn consume(&mut self, count: usize) {
+        Source::consume(self, count);
+    }
+}
+
+impl<R: crate::Reader<Error = io::Error>, const N: usize> Read for crate::BufferedInput<R, N> {
+    fn read(&mut self, destination: &mut [u8]) -> io::Result<usize> {
+        crate::read(self, destination)
+    }
+}
+
+impl<R: crate::Reader<Error = io::Error>, const N: usize> BufRead for crate::BufferedInput<R, N> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        Source::fill_buf(self)
+    }
+    fn consume(&mut self, count: usize) {
+        Source::consume(self, count);
+    }
+}

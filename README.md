@@ -138,6 +138,9 @@ readers and copying helpers. With std, `BufferedInput::new(Io::new(reader))`
 also provides inline buffering of a standard reader, retrying interruptions.
 Keep the wrapper to retain prefetched data; `BufferedInput::into_inner` discards
 any unread buffer, which can first be inspected with `buffer()`.
+Both `Input` and `BufferedInput` with `std::io::Error` also implement standard
+`Read` / `BufRead`, allowing existing Rust readers and fast_io scanners to share
+the same buffer without unwrapping it.
 
 ## Features and checks
 

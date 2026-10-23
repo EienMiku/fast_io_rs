@@ -31,6 +31,8 @@
   empty buffer for large direct reads. `Io<R>` adapts std readers and retries
   interruptions. Unwrapping `BufferedInput` discards its unread buffer; inspect
   `buffer()` or keep the wrapper when unread bytes must be retained.
+  With std, both input wrappers implement std Read/BufRead when the device error
+  is std::io::Error, so consumers can switch APIs without dropping prefetch.
 
 All memory access in this crate is currently safe Rust. Optional dependencies
 retain their own implementation and licensing.
