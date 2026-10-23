@@ -98,6 +98,9 @@ specifiers and empty enums are not supported.
 
 Use small, focused tests for I/O correctness, boundary values and dispatch.
 CI covers stable Rust on Linux, Windows and macOS, plus MSRV and nightly on Linux.
+Stable CI also checks `thumbv6m-none-eabi` (Cortex-M0, no pointer atomics), both
+the dependency-free core and the optional alloc/float/derive combination. These
+are cross-compilation checks, not execution on embedded hardware.
 Do not duplicate implementation details in tests or invent performance thresholds.
 
 The current focused suite covers capability dispatch, numeric boundaries,

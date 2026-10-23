@@ -33,3 +33,9 @@ jobs:
         run: cargo +stable fmt --all -- --check
       - if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
         run: cargo +stable clippy --workspace --all-targets --all-features -- -D warnings
+      - if: matrix.os == 'ubuntu-latest' && matrix.toolchain == 'stable'
+        name: Check no_std on Cortex-M0
+        run: |
+          rustup target add thumbv6m-none-eabi --toolchain stable
+          cargo +stable check --no-default-features --target thumbv6m-none-eabi
+          cargo +stable check --no-default-features --features alloc,float,derive --target thumbv6m-none-eabi

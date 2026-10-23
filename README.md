@@ -164,6 +164,8 @@ growable memory output or `float` for zmij-based formatting.
 cargo test --all-features
 cargo test --no-default-features
 cargo clippy --all-targets --all-features -- -D warnings
+rustup target add thumbv6m-none-eabi --toolchain stable
+cargo check --no-default-features --target thumbv6m-none-eabi
 cargo run --example hello
 cargo run --example scan_sum
 cargo run --example custom --features derive
