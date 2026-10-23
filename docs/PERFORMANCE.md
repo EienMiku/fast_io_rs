@@ -86,6 +86,14 @@ Different filesystems, devices, buffer sizes and scheduling can change it.
 The optional second argument replaces the short name with a payload of that
 many bytes, exercising records larger than the persistent buffer.
 
+With 1,000 records containing 16,384-byte payloads (16,451,732 total bytes), the
+existing streaming fallback measured 9,785.80 ns/record for std and 9,939.10 for
+fast_io. A trial routing these records through a new scatter batch measured
+11,010.10 for std and 24,724.30 for fast_io; that change was not adopted. The
+functional availability of scatter output alone does not establish that it is
+the efficient path for a device. In particular, splitting a large record into
+separate header/payload/trailer writes can defeat buffer coalescing.
+
 ## What remains to measure
 
 - Unbuffered file, pipe and socket output, including scatter batching.
