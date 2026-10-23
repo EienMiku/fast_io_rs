@@ -9,8 +9,12 @@ pub mod batch;
 pub mod buffered;
 mod builtins;
 pub mod compose;
+#[cfg(feature = "float")]
+mod float;
 pub mod fmt_bridge;
 pub mod memory;
+pub mod quoted;
+pub mod radix;
 #[cfg(feature = "std")]
 pub mod std_io;
 
@@ -25,6 +29,8 @@ pub use encode::{Encode, write};
 pub use fmt_bridge::{debug, display, write_fmt};
 pub use memory::{CapacityError, SliceSink};
 pub use presence::{Presence, provided, provided0, provided2, provided3};
+pub use quoted::{Quoted, quoted};
+pub use radix::{Radix, bin, hex, oct, radix};
 pub use sink::{Sink, write_scatter};
 #[cfg(feature = "std")]
 pub use std_io::Io;

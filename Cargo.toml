@@ -9,12 +9,17 @@ repository = "https://github.com/EienMiku/fast_io_rs"
 publish = false
 
 [features]
-default = ["std"]
+default = ["std", "float"]
 alloc = []
 std = ["alloc"]
+float = ["dep:zmij"]
 
 [lib]
 name = "fast_io"
+
+[[example]]
+name = "hello"
+required-features = ["std"]
 
 [lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
@@ -22,3 +27,6 @@ missing_debug_implementations = "warn"
 
 [lints.clippy]
 undocumented_unsafe_blocks = "deny"
+
+[dependencies]
+zmij = { version = "1", default-features = false, optional = true }

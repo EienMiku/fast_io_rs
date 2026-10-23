@@ -72,9 +72,10 @@ macro_rules! __fast_io_args {
 /// device flush are added.
 ///
 /// ```
-/// let mut bytes = Vec::new();
-/// fast_io::print!(&mut bytes; "answer=", 42, " ", true).unwrap();
-/// assert_eq!(bytes, b"answer=42 true");
+/// let mut storage = [0; 64];
+/// let mut output = fast_io::SliceSink::new(&mut storage);
+/// fast_io::print!(&mut output; "answer=", 42, " ", true).unwrap();
+/// assert_eq!(output.as_bytes(), b"answer=42 true");
 /// ```
 #[macro_export]
 macro_rules! print {
