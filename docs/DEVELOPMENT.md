@@ -76,6 +76,9 @@ See [DESIGN.md](DESIGN.md) for the optional-hook mechanism and a codegen probe.
 
 - Measure pipe/socket/scatter paths before adding native handles or more complex
   OS specialization; the buffered file benchmark already checks matching bytes.
+- Treat scatter presence as a functional capability, not a performance promise.
+  Routing oversized buffered records through scatter regressed on Windows and
+  was not adopted; see the large-record measurements before revisiting it.
 - Improve usability and document sharp edges before broadening the API further.
 - Native handles, async I/O, locale rules and additional encodings remain outside
   the implemented scope. The crate is unpublished and its API remains provisional.
